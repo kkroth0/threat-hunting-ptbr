@@ -1,0 +1,21 @@
+// HEARTH H093 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H093.md
+// Hipótese: Um adversário está implantando malware codificado em AI-vibe compilado em linguagens obscuras (Nim, Zig, Crystal) para evitar a detecção de antivírus baseada em assinatura, visando endpoints Windows nos setores governamental e de defesa, para alcançar...
+// Padrão: processo Linux syslog/auditd e revisão de arquivo
+// Cobertura: Starter - validar telemetria Linux
+// Prioridade: P3 (40)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, Syslog, Heartbeat, CommonSecurityLog, Cloudflare_CL, AzureDiagnostics, AppRequests, AppTraces, ThreatIntelIndicators
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1027", "defense evasion", "nim", "zig", "crystal", "obscure language malware", "apt36", "ai generated malware", "H093", "deploying", "AI-vibe-coded", "malware", "compiled", "obscure", "languages", "Crystal", "evade", "signature-based", "antivirus", "detection", "targeting", "Windows", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H093", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H093.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

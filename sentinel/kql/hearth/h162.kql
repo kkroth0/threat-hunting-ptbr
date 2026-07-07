@@ -1,0 +1,21 @@
+// HEARTH H162 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H162.md
+// Hipótese: Um serviço web Linux comprometido (Confluence/Java, gerenciamento F5) está preparando uma carga útil em /dev/shm ou /tmp executando chmod 777 no diretório ou arquivo - permitindo a execução de um binário de segundo estágio baixado de...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (41)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, Syslog, Heartbeat, CommonSecurityLog, AzureActivity, AzureDiagnostics, OrcaAlerts_CL, NetskopeEventsNetwork_CL, ThreatIntelIndicators
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntTerms = dynamic(["T1059.004", "T1105", "T1036.005", "T1222.002", "defense evasion", "linux", "chmod", "dev shm", "confluence", "f5", "H162", "compromised", "Linux", "service", "Confluence/Java", "management", "staging", "payload", "dev/shm", "performing", "directory", "file", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H162", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H162.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

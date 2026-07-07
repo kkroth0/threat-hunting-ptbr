@@ -1,0 +1,31 @@
+// HEARTH H202 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H202.md
+// Hipótese: os atores da ameaça estão exfiltrando credenciais API armazenadas nas configurações do plug-in JetBrains IDE, transmitindo-as sem criptografia por meio de HTTP para um servidor de comando e controle codificado em 39.107.60[.]51 imediatamente após os usuários clicarem...
+// Padrão: correlação Sentinel específica da hipótese
+// Cobertura: Parcial - é necessário ajuste personalizado
+// Prioridade: P3 (31)
+// Tabelas: SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntId = "H202";
+let sourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H202.md";
+let huntTerms = dynamic(["T1552.001", "credential access", "jetbrains", "api keys", "H202", "exfiltrating", "credentials", "stored", "JetBrains", "plugin", "settings", "transmitting", "them", "unencrypted", "over", "hardcoded", "command", "control", "server", "39.107.60", "immediately", "users"]);
+union withsource=SourceTable isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    IdentityInfo,
+    BehaviorAnalytics,
+    UserPeerAnalytics,
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL,
+    CommonSecurityLog,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = huntId, SourceUrl = sourceUrl
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

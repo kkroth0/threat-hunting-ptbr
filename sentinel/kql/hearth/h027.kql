@@ -1,0 +1,21 @@
+// HEARTH H027 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H027.md
+// Hipótese: os atores da ameaça BlueNoroff estão entregando arquivos AppleScript maliciosos (.scpt) por meio de domínios Zoom falsos com arquivos grandes contendo> 10.000 linhas em branco para mascarar a entrega de carga útil maliciosa para acesso inicial à criptografia...
+// Padrão: script suspeito e execução de comando
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (44)
+// Tabelas: ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, AzureDiagnostics, AppRequests
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1566.002", "initialaccess", "applescript", "bluenoroff", "H027", "BlueNoroff", "delivering", "malicious", "AppleScript", "files", "scpt", "fake", "Zoom", "domains", "oversized", "containing", "blank", "lines", "mask", "payload", "delivery", "initial", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H027", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H027.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

@@ -1,0 +1,23 @@
+// HEARTH H019 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H019.md
+// Hipótese: Os atores da ameaça estão aproveitando arquivos Linux Executable and Linkage Format (ELF) para implantar famílias de malware em endpoints de infraestrutura em nuvem executando Linux OS, com o objetivo tático imediato de obter acesso não autorizado...
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P1 (74)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, Cloudflare_CL, CommonSecurityLog, AzureDiagnostics
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1204", "initialaccess", "userexecution", "elf", "H019", "leveraging", "Linux", "Executable", "Linkage", "Format", "files", "deploy", "malware", "families", "cloud", "infrastructure", "endpoints", "running", "immediate", "tactical", "goal", "gaining", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H019", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H019.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

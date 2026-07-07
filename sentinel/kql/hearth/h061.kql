@@ -1,0 +1,23 @@
+// HEARTH H061 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H061.md
+// Hipótese: Os adversários estão modificando o nível de aceitação VIB em hosts ESXi usando comandos esxcli para reduzir a aplicação da integridade do sistema de VMwareCertified ou VMwareAccepted para CommunitySupported, permitindo a instalação de u...
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (56)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, Cloudflare_CL, CommonSecurityLog, AzureDiagnostics
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntTerms = dynamic(["T1562.001", "defense evasion", "esxi", "hypervisor", "ransomware", "H061", "modifying", "acceptance", "level", "ESXi", "esxcli", "commands", "lower", "system", "integrity", "enforcement", "VMwareCertified", "VMwareAccepted", "CommunitySupported", "enabling", "installation", "unsigned", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H061", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H061.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

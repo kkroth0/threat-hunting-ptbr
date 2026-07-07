@@ -1,0 +1,21 @@
+// HEARTH H171 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H171.md
+// Hipótese: Um host Windows foi comprometido pela campanha de cryptojacking SEO -> ScreenConnect -> .NET-utility que a Microsoft documentou em maio de 2026 - identificável por um autorun.dll carregado lateralmente em ~\Downloads\ ou %TEMP...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (35)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, AzureActivity, AzureDiagnostics, OrcaAlerts_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1574.002", "defense evasion", "windows", "dll sideloading", "screenconnect", "cryptojacking", "seo poisoning", "runtime host", "net utility hollowing", "H171", "Windows", "been", "compromised", "SEO-poisoning", "ScreenConnect", "NET-utility", "campaign", "Microsoft", "documented", "2026", "identifiable", "autorun.dll", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H171", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H171.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

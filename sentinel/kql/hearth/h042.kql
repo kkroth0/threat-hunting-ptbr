@@ -1,0 +1,21 @@
+// HEARTH H042 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H042.md
+// Hipótese: os agentes de ameaças estão usando o cmdlet Expand-Archive do PowerShell para extrair arquivos CAB maliciosos contendo configurações de rootkit DEMODEX criptografadas e cargas úteis de shellcode para C:\Windows\debug\ antes de excluir o ar original...
+// Padrão: script suspeito e execução de comando
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (35)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, AzureActivity, AzureDiagnostics, OrcaAlerts_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1140", "defense evasion", "deobfuscate files", "earth estries", "H042", "PowerShell", "Expand-Archive", "cmdlet", "extract", "malicious", "files", "containing", "encrypted", "DEMODEX", "rootkit", "configurations", "shellcode", "payloads", "C:\\Windows\\debug\\", "deleting", "original", "archive", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H042", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H042.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

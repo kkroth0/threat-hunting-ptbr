@@ -1,0 +1,21 @@
+// HEARTH H149 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H149.md
+// Hipótese: os usuários de Microsoft 365 estão clicando em uma isca de phishing de "código de conduta" / "regulatório interno" que é roteado por meio de uma página de teste controlada por Cloudflare-CAPTCHA antes de um proxy de login da Microsoft, gerando visão de roubo de token de sessão...
+// Padrão: correlação de abuso de identidade token/OAuth
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (62)
+// Tabelas: SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, OfficeActivity, NetskopeEventsApplication_CL, NetskopeEventsAudit_CL, NetskopeEventsPage_CL, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1078.004", "T1564.008", "T1539", "credential access", "m365", "entra id", "aitm", "phishing", "code of conduct", "H149", "Microsoft", "users", "clicking", "code", "conduct", "internal", "regulatory", "lure", "that", "routes", "through", "Cloudflare-CAPTCHA-gated"]);
+union withsource=SourceTable isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    OfficeActivity
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+    or SearchBlob has_any ("deviceCode", "oauth", "refresh token", "consent", "service principal", "Microsoft Graph")
+| extend HuntId = "H149", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H149.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

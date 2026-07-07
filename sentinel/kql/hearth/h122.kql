@@ -1,0 +1,21 @@
+// HEARTH H122 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H122.md
+// Hipótese: um adversário está abusando das permissões de caixa de correio do Exchange para obter amplo acesso ao e-mail organizacional, indicado pelas atribuições de função Add-MailboxPermission ou ApplicationImpersonation concedendo a uma única conta acesso a mu...
+// Padrão: correlação de abuso de identidade token/OAuth
+// Cobertura: Starter - validar telemetria SaaS
+// Prioridade: P2 (48)
+// Tabelas: OfficeActivity, AuditLogs, SigninLogs, NetskopeEventsApplication_CL, NetskopeEventsAudit_CL, NetskopeEventsPage_CL, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1114.002", "email collection", "exchange", "mailbox delegation", "oauth", "H122", "abusing", "Exchange", "mailbox", "permissions", "gain", "broad", "access", "organizational", "email", "indicated", "Add-MailboxPermission", "ApplicationImpersonation", "role", "assignments", "granting", "single"]);
+union withsource=SourceTable isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    OfficeActivity
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+    or SearchBlob has_any ("deviceCode", "oauth", "refresh token", "consent", "service principal", "Microsoft Graph")
+| extend HuntId = "H122", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H122.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

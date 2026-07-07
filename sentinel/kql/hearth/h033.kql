@@ -1,0 +1,21 @@
+// HEARTH H033 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H033.md
+// Hipótese: os agentes de ameaças estão usando o cmdlet Invoke-RestMethod de PowerShell para baixar cargas úteis de ransomware de domínios de baixa reputação registrados recentemente para criptografar arquivos e exigir pagamento.
+// Padrão: script suspeito e execução de comando
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (62)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1059.001", "command and scripting interpreter", "powershell", "ransomware", "H033", "PowerShell", "Invoke-RestMethod", "cmdlet", "download", "payloads", "recently", "registered", "low-reputation", "domains", "encrypt", "files", "demand", "payment", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H033", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H033.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

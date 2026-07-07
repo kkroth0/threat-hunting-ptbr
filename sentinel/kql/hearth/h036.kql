@@ -1,0 +1,27 @@
+// HEARTH H036 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H036.md
+// Hipótese: os agentes de ameaças estão usando o Chisel, um utilitário de tunelamento de código aberto, para criar proxies SOCKS em hosts comprometidos para contornar os controles de segurança da rede e ocultar o tráfego C2.
+// Padrão: Rede, DNS e correlação de anomalia de saída
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (39)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, ThreatIntelIndicators, Watchlist, SecurityAlert
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1090.001", "defense evasion", "proxy", "chisel", "H036", "Chisel", "open-source", "tunneling", "utility", "create", "SOCKS", "proxies", "compromised", "bypass", "network", "security", "controls", "conceal", "traffic", "dns", "http", "https", "ssh", "rdp", "smb", "tunnel", "beacon", "c2", "block", "deny"]);
+union withsource=SourceTable isfuzzy=true
+    CommonSecurityLog,
+    Cloudflare_CL,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL,
+    NetskopeAlerts_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H036", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H036.md"
+| summarize
+    Events = count(),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated),
+    Samples = make_set(SearchBlob, 3)
+    by HuntId, SourceUrl, SourceTable
+| order by Events desc

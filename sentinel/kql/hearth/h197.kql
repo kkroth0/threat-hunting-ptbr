@@ -1,0 +1,21 @@
+// HEARTH H197 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H197.md
+// Hipótese: um adversário persiste registrando um processador de impressão malicioso (valor do driver em Control\Print\Environments\*\Print Processors\*), então spoolsv.exe carrega um invasor DLL com privilégios SYSTEM na inicialização.
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (46)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, AzureActivity, AzureDiagnostics, OrcaAlerts_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntTerms = dynamic(["T1547.012", "T1547.010", "print processor", "spoolsv", "fishmonger", "sprysocks", "masquerading", "H197", "persists", "registering", "malicious", "print", "processor", "Driver", "value", "under", "Control\\Print\\Environments\\", "Print", "Processors\\", "spoolsv.exe", "loads", "attacker", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H197", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H197.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

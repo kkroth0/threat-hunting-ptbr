@@ -1,0 +1,31 @@
+// HEARTH H050 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H050.md
+// Hipótese: um adversário obteve com sucesso hashes de senha AD abusando de permissões de replicação por meio de uma operação de sincronização DC.
+// Padrão: IOC e varredura do indicador
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (46)
+// Tabelas: SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntId = "H050";
+let sourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H050.md";
+let huntTerms = dynamic(["T1003.006", "credentialaccess", "activedirectory", "identity", "secretsdump", "H050", "successfully", "obtained", "password", "hashes", "abusing", "replication", "permissions", "through", "Sync", "operation"]);
+union withsource=SourceTable isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    IdentityInfo,
+    BehaviorAnalytics,
+    UserPeerAnalytics,
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL,
+    ThreatIntelIndicators,
+    Watchlist,
+    SecurityAlert
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = huntId, SourceUrl = sourceUrl
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

@@ -1,0 +1,22 @@
+// HEARTH H010 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H010.md
+// Hipótese: Os adversários podem procurar compartilhamentos de rede em sistemas comprometidos para localizar arquivos de interesse. Dados confidenciais podem ser coletados de sistemas remotos por meio de unidades de rede compartilhadas (diretórios compartilhados por host, servidores de arquivos de rede...
+// Padrão: auditoria SaaS/M365 e revisão de atividade de caixa de correio
+// Cobertura: Starter - validar telemetria SaaS
+// Prioridade: P3 (28)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, Syslog, Heartbeat, CommonSecurityLog, OfficeActivity, AuditLogs, SigninLogs, NetskopeEventsApplication_CL, NetskopeEventsAudit_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1039", "datafromnetworkshareddrive", "H010", "search", "network", "shares", "compromised", "systems", "locate", "files", "interest", "Sensitive", "gathered", "remote", "shared", "drives", "host-shared", "directories", "file", "servers", "that", "accessible", "New-InboxRule", "Set-InboxRule", "Mailbox", "Consent", "service principal", "SharePoint", "Teams", "OneDrive", "BCC", "forward"]);
+union withsource=SourceTable isfuzzy=true
+    OfficeActivity,
+    AuditLogs,
+    SigninLogs,
+    NetskopeEventsApplication_CL,
+    NetskopeEventsAudit_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H010", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H010.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

@@ -1,0 +1,22 @@
+// HEARTH H049 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H049.md
+// Hipótese: Os adversários estão usando regras de caixa de correio para ocultar sua presença em contas de e-mail comprometidas, excluindo, redirecionando ou marcando automaticamente as mensagens como lidas.
+// Padrão: auditoria SaaS/M365 e revisão de atividade de caixa de correio
+// Cobertura: Starter - validar telemetria SaaS
+// Prioridade: P1 (86)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, OfficeActivity, AuditLogs, SigninLogs, NetskopeEventsApplication_CL, NetskopeEventsAudit_CL, NetskopeEventsPage_CL, Cloudflare_CL, CommonSecurityLog
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntTerms = dynamic(["T1564.008", "T1114", "defenseevasion", "phishing", "H049", "mailbox", "rules", "hide", "presence", "within", "compromised", "email", "accounts", "automatically", "deleting", "redirecting", "marking", "messages", "read", "New-InboxRule", "Set-InboxRule", "Mailbox", "Consent", "service principal", "SharePoint", "Teams", "OneDrive", "BCC", "forward"]);
+union withsource=SourceTable isfuzzy=true
+    OfficeActivity,
+    AuditLogs,
+    SigninLogs,
+    NetskopeEventsApplication_CL,
+    NetskopeEventsAudit_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H049", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H049.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

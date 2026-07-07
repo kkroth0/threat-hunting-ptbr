@@ -1,0 +1,21 @@
+// HEARTH H054 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H054.md
+// Hipótese: os agentes de ameaças estão usando arquivos AppleScript (.scpt) compilados com extensões de documentos falsas como .docx.scpt e .pptx.scpt, combinados com ícones personalizados armazenados em bifurcações de recursos, para induzir os usuários a executar telas maliciosas...
+// Padrão: script suspeito e execução de comando
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (40)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1553.001", "defense evasion", "macos", "gatekeeper", "applescript", "H054", "compiled", "AppleScript", "scpt", "files", "fake", "document", "extensions", "like", "docx.scpt", "pptx.scpt", "combined", "custom", "icons", "stored", "resource", "forks", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H054", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H054.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

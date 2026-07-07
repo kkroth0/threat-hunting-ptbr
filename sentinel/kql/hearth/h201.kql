@@ -1,0 +1,22 @@
+// HEARTH H201 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H201.md
+// Hipótese: Os adversários estão criando regras de conformidade de conteúdo em nível de domínio com padrões de expressão regular que correspondem a palavras-chave de inteligência estratégica para encaminhar e-mails silenciosamente BCC para contas do Gmail controladas por invasores externos para...
+// Padrão: auditoria SaaS/M365 e revisão de atividade de caixa de correio
+// Cobertura: Starter - validar telemetria SaaS
+// Prioridade: P3 (33)
+// Tabelas: OfficeActivity, AuditLogs, SigninLogs, NetskopeEventsApplication_CL, NetskopeEventsAudit_CL, NetskopeEventsPage_CL, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, IdentityInfo, BehaviorAnalytics
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1114.003", "email", "china", "unc6508", "H201", "creating", "domain-level", "content", "compliance", "rules", "regular", "expression", "patterns", "matching", "strategic", "intelligence", "keywords", "silently", "BCC-forward", "emails", "external", "attacker-controlled", "New-InboxRule", "Set-InboxRule", "Mailbox", "Consent", "service principal", "SharePoint", "Teams", "OneDrive", "BCC", "forward"]);
+union withsource=SourceTable isfuzzy=true
+    OfficeActivity,
+    AuditLogs,
+    SigninLogs,
+    NetskopeEventsApplication_CL,
+    NetskopeEventsAudit_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H201", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H201.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

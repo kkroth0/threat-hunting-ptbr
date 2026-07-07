@@ -1,0 +1,21 @@
+// HEARTH H111 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H111.md
+// Hipótese: Um adversário está realizando descoberta de serviços de rede implantando ferramentas de varredura de portas, como Advanced IP Scanner, SoftPerfect Network Scanner ou nmap para identificar serviços acessíveis, incluindo RDP (3389), SMB (445),...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (34)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1046", "port scanning", "network scanning", "advanced ip scanner", "H111", "performing", "network", "service", "discovery", "deploying", "port", "scanning", "tools", "such", "Advanced", "Scanner", "SoftPerfect", "Network", "nmap", "identify", "accessible", "services", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H111", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H111.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

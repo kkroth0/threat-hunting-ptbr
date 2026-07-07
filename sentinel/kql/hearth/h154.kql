@@ -1,0 +1,21 @@
+// HEARTH H154 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H154.md
+// Hipótese: Os agentes de ameaças com acesso de administrador local a um host Enterprise CA estão modificando HKLM\SYSTEM\CurrentControlSet\Services\CertSvc\Configuration\<CAName>\AuditFilter (via certutil -setreg CA\AuditFilter 0 ou gravação direta de registro...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (40)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1070", "T1649", "T1562.002", "defense evasion", "ad cs", "certutil", "windows", "H154", "local-admin", "access", "Enterprise", "modifying", "HKLM\\SYSTEM\\CurrentControlSet\\Services\\CertSvc\\Configuration\\", "CAName", "AuditFilter", "setreg", "CA\\AuditFilter", "direct", "write", "silence", "Certificate", "Services", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H154", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H154.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

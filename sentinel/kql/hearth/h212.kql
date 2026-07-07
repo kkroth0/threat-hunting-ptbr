@@ -1,0 +1,31 @@
+// HEARTH H212 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H212.md
+// Hipótese: os agentes de ameaças estão distribuindo malware por meio de anúncios maliciosos do Google que se fazem passar por marcas de software legítimas para redirecionar os usuários para domínios controlados pelo invasor que hospedam cargas úteis OXLOADER e CASTLESTEALER.
+// Padrão: IOC e varredura do indicador
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (59)
+// Tabelas: CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, AzureDiagnostics, AppRequests, AppTraces, Syslog, ThreatIntelIndicators, Watchlist, SecurityAlert
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntId = "H212";
+let sourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H212.md";
+let huntTerms = dynamic(["T1189", "initial access", "drive by compromise", "malvertising", "H212", "distributing", "malware", "through", "malicious", "Google", "that", "impersonate", "legitimate", "software", "brands", "redirect", "users", "attacker-controlled", "domains", "hosting", "OXLOADER", "CASTLESTEALER"]);
+union withsource=SourceTable isfuzzy=true
+    CommonSecurityLog,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL,
+    Cloudflare_CL,
+    NetskopeAlerts_CL,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog,
+    ThreatIntelIndicators,
+    Watchlist,
+    SecurityAlert
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = huntId, SourceUrl = sourceUrl
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

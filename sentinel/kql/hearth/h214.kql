@@ -1,0 +1,21 @@
+// HEARTH H214 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H214.md
+// Hipótese: Um adversário evita a detecção da linha de comando executando comandos ofuscados - Base64 -e/-EncodedCommand PowerShell executado via WMI, nomes de intérpretes pOWerShELl.exE/CmD.eXe de maiúsculas e minúsculas e reconstrução de string em tempo de execução -...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (39)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["H214", "evades", "command-line", "detection", "executing", "obfuscated", "commands", "Base64", "EncodedCommand", "PowerShell", "mixed-case", "pOWerShELl.exE", "CmD.eXe", "interpreter", "names", "runtime", "string", "reconstruction", "matching", "BumbleBee", "AdaptixC2", "Akira", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H214", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H214.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

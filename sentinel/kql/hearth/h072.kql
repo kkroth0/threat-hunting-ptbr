@@ -1,0 +1,23 @@
+// HEARTH H072 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H072.md
+// Hipótese: um adversário está transformando a extração de arquivo WinRAR em uma arma para gravar malware na pasta de inicialização Windows, visando usuários que abrem anexos de phishing para obter persistência e execução automática
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (48)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, OfficeActivity, AuditLogs, SigninLogs, NetskopeEventsApplication_CL, NetskopeEventsAudit_CL, NetskopeEventsPage_CL, IdentityInfo, BehaviorAnalytics
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["winrar", "persistence", "startup folder", "phishing", "cve 2025 8088", "H072", "weaponizing", "WinRAR", "archive", "extraction", "write", "malware", "Windows", "Startup", "folder", "targeting", "users", "open", "attachments", "achieve", "automatic", "execution", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H072", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H072.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

@@ -1,0 +1,22 @@
+// HEARTH H158 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H158.md
+// Hipótese: Ladrões de informações (Gremlin Stealer, Laplas Clipper e variantes) estão executando um thread persistente que pesquisa a área de transferência Windows em busca de padrões de carteira de criptomoeda e substitui as strings correspondentes por um invasor-co...
+// Padrão: auditoria SaaS/M365 e revisão de atividade de caixa de correio
+// Cobertura: Starter - validar telemetria SaaS
+// Prioridade: P2 (48)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, Syslog, Heartbeat, CommonSecurityLog
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1027", "T1115", "crypto clipper", "gremlin stealer", "laplas", "windows", "H158", "Information", "stealers", "Gremlin", "Stealer", "Laplas", "Clipper", "variants", "running", "persistent", "thread", "that", "polls", "Windows", "clipboard", "cryptocurrency", "New-InboxRule", "Set-InboxRule", "Mailbox", "Consent", "service principal", "SharePoint", "Teams", "OneDrive", "BCC", "forward"]);
+union withsource=SourceTable isfuzzy=true
+    OfficeActivity,
+    AuditLogs,
+    SigninLogs,
+    NetskopeEventsApplication_CL,
+    NetskopeEventsAudit_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H158", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H158.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

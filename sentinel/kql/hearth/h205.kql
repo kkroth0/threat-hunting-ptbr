@@ -1,0 +1,21 @@
+// HEARTH H205 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H205.md
+// Hipótese: um adversário com permissões de exclusão de armazenamento sequestra um nome de bucket globalmente exclusivo, excluindo um bucket da vítima que é um destino de pipeline ativo e recriando-o em sua própria conta, fazendo com que o log da vítima...
+// Padrão: revisão do plano de controle da nuvem e do abuso de postura
+// Cobertura: Starter - validar telemetria em nuvem
+// Prioridade: P1 (75)
+// Tabelas: AzureActivity, AzureDiagnostics, OrcaAlerts_CL, NetskopeEventsNetwork_CL, CommonSecurityLog, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntTerms = dynamic(["T1537", "cloud", "aws", "gcp", "azure", "s3", "gcs", "azure blob", "bucket hijacking", "cloudtrail", "H205", "storage-delete", "permissions", "hijacks", "globally-unique", "bucket", "name", "deleting", "victim", "that", "active", "pipeline", "roleAssignments", "delete", "write", "storage", "iam", "diagnosticSettings", "critical", "high"]);
+union withsource=SourceTable isfuzzy=true
+    AzureActivity,
+    AzureDiagnostics,
+    OrcaAlerts_CL,
+    NetskopeEventsNetwork_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H205", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H205.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

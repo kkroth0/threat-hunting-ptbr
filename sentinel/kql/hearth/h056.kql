@@ -1,0 +1,21 @@
+// HEARTH H056 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H056.md
+// Hipótese: Os adversários estão invalidando sessões ativas de usuários revogando tokens de atualização OAuth ou cookies de sessão por meio de contas administrativas comprometidas em Microsoft Entra ID, forçando os usuários a se autenticarem novamente e acionando M...
+// Padrão: correlação de abuso de identidade token/OAuth
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (61)
+// Tabelas: SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, AzureActivity, AzureDiagnostics, OrcaAlerts_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntTerms = dynamic(["T1550.001", "defense evasion", "oauth", "session hijacking", "H056", "invalidating", "active", "user", "sessions", "revoking", "OAuth", "refresh", "tokens", "session", "cookies", "through", "compromised", "administrative", "accounts", "Microsoft", "Entra", "forcing"]);
+union withsource=SourceTable isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    OfficeActivity
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+    or SearchBlob has_any ("deviceCode", "oauth", "refresh token", "consent", "service principal", "Microsoft Graph")
+| extend HuntId = "H056", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H056.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

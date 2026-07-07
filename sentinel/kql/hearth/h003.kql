@@ -1,0 +1,27 @@
+// HEARTH H003 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H003.md
+// Hipótese: um adversário extraiu dados de servidores de backup em pequenos arquivos .zip (1 MB).
+// Padrão: Rede, DNS e correlação de anomalia de saída
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (60)
+// Tabelas: CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, AzureActivity, AzureDiagnostics, OrcaAlerts_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntTerms = dynamic(["T1030", "T1560.001", "H003", "exfiltrated", "backup", "servers", "small", "files", "dns", "http", "https", "ssh", "rdp", "smb", "tunnel", "beacon", "c2", "block", "deny"]);
+union withsource=SourceTable isfuzzy=true
+    CommonSecurityLog,
+    Cloudflare_CL,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL,
+    NetskopeAlerts_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H003", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H003.md"
+| summarize
+    Events = count(),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated),
+    Samples = make_set(SearchBlob, 3)
+    by HuntId, SourceUrl, SourceTable
+| order by Events desc

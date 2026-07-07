@@ -1,0 +1,27 @@
+// HEARTH H127 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H127.md
+// Hipótese: Um adversário está exfiltrando dados usando rclone encapsulado por meio de uma máquina virtual QEMU local para ocultar a verdadeira origem do tráfego de rede, indicada por rclone servindo um compartilhamento WebDAV no host local seguido por QEMU VM n...
+// Padrão: Rede, DNS e correlação de anomalia de saída
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (57)
+// Tabelas: CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, AzureDiagnostics, AppRequests, AppTraces
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntTerms = dynamic(["T1048.001", "rclone", "qemu", "data exfiltration", "vm tunnel", "H127", "exfiltrating", "tunneled", "through", "QEMU", "virtual", "machine", "obscure", "true", "source", "network", "traffic", "indicated", "serving", "WebDAV", "share", "localhost", "dns", "http", "https", "ssh", "rdp", "smb", "tunnel", "beacon", "c2", "block", "deny"]);
+union withsource=SourceTable isfuzzy=true
+    CommonSecurityLog,
+    Cloudflare_CL,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL,
+    NetskopeAlerts_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H127", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H127.md"
+| summarize
+    Events = count(),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated),
+    Samples = make_set(SearchBlob, 3)
+    by HuntId, SourceUrl, SourceTable
+| order by Events desc

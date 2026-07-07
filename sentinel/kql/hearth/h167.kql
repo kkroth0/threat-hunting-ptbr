@@ -1,0 +1,21 @@
+// HEARTH H167 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H167.md
+// Hipótese: uma identidade Entra ID comprometida (usuário ou entidade de serviço) com RBAC de nível de Colaborador personalizado em uma assinatura está invocando extensões Azure VM - especificamente Microsoft.Compute/virtualMachines/runCommand/action, Micr...
+// Padrão: correlação de abuso de identidade token/OAuth
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (49)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1651", "azure", "cloud", "run command", "vmaccess", "vm extension", "storm 2949", "H167", "compromised", "Entra", "identity", "user", "service", "principal", "custom", "Contributor-level", "RBAC", "subscription", "invoking", "Azure", "extensions", "specifically"]);
+union withsource=SourceTable isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    OfficeActivity
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+    or SearchBlob has_any ("deviceCode", "oauth", "refresh token", "consent", "service principal", "Microsoft Graph")
+| extend HuntId = "H167", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H167.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

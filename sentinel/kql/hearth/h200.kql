@@ -1,0 +1,21 @@
+// HEARTH H200 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H200.md
+// Hipótese: os atores da ameaça estão usando o carregamento lateral DLL para forçar executáveis VirtualBox legítimos assinados (DbgView.exe) a carregar DLLs malicioso (vboxrt.dll) que baixam código malicioso adicional de servidores controlados pelo invasor para...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (40)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, Cloudflare_CL, CommonSecurityLog, AzureDiagnostics
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1574.002", "defense evasion", "dll sideloading", "virtualbox", "dragonforce", "H200", "side-loading", "force", "legitimate", "signed", "VirtualBox", "executables", "DbgView.exe", "load", "malicious", "DLLs", "vboxrt.dll", "that", "download", "additional", "code", "attacker-controlled", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H200", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H200.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

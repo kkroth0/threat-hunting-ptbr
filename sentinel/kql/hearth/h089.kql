@@ -1,0 +1,21 @@
+// HEARTH H089 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H089.md
+// Hipótese: Um adversário está usando engenharia social para induzir os usuários a executar comandos codificados em hexadecimal no Terminal Windows para implantar malware de roubo de informações direcionado a usuários corporativos para coletar credenciais e tokens de sessão.
+// Padrão: correlação de abuso de identidade token/OAuth
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (48)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, Syslog, Heartbeat, CommonSecurityLog
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1204.002", "T1059.001", "T1555", "credential access", "clickfix", "windows terminal", "lumma stealer", "infostealer", "H089", "social", "engineering", "trick", "users", "executing", "hex-encoded", "commands", "Windows", "Terminal", "deploy", "information-stealing", "malware", "targeting"]);
+union withsource=SourceTable isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    OfficeActivity
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+    or SearchBlob has_any ("deviceCode", "oauth", "refresh token", "consent", "service principal", "Microsoft Graph")
+| extend HuntId = "H089", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H089.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

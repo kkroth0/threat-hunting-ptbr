@@ -1,0 +1,31 @@
+// HEARTH H182 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H182.md
+// Hipótese: Adversários (UNC3753 / Luna Moth) usam voz de spearphishing (vishing) se passando por suporte técnico IT para levar as vítimas a um compartilhamento de tela e, em seguida, instalam ferramentas RMM; caça binários RMM/remote-access gerados por aplicativos de colaboração pl...
+// Padrão: IOC e varredura do indicador
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P1 (75)
+// Tabelas: CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, AzureDiagnostics, AppRequests, AppTraces, Syslog, OfficeActivity, AuditLogs, SigninLogs
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntId = "H182";
+let sourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H182.md";
+let huntTerms = dynamic(["T1566.004", "T1219", "T1204.002", "T1059.003", "H182", "UNC3753", "Luna", "Moth", "spearphishing", "voice", "vishing", "posing", "help", "desk", "drive", "victims", "screen-share", "then", "install", "tools", "RMM/remote-access", "binaries"]);
+union withsource=SourceTable isfuzzy=true
+    CommonSecurityLog,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL,
+    Cloudflare_CL,
+    NetskopeAlerts_CL,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog,
+    OfficeActivity,
+    AuditLogs,
+    SigninLogs
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = huntId, SourceUrl = sourceUrl
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

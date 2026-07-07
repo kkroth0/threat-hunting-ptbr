@@ -1,0 +1,31 @@
+// HEARTH H109 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H109.md
+// Hipótese: Um adversário está realizando reconhecimento de rede interna gerando um pico nas tentativas de conexão SMB de um único host para vários endpoints na rede, indicando enumeração de hosts ativos e acessíveis...
+// Padrão: correlação Sentinel específica da hipótese
+// Cobertura: Parcial - é necessário ajuste personalizado
+// Prioridade: P4 (21)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntId = "H109";
+let sourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H109.md";
+let huntTerms = dynamic(["T1018", "smb scanning", "network enumeration", "reconnaissance", "H109", "performing", "internal", "network", "generating", "spike", "connection", "attempts", "single", "many", "endpoints", "indicating", "enumeration", "live", "accessible", "shares"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL,
+    CommonSecurityLog,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL,
+    Cloudflare_CL,
+    NetskopeAlerts_CL,
+    SigninLogs,
+    AuditLogs,
+    IdentityInfo
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = huntId, SourceUrl = sourceUrl
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

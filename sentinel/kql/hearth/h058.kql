@@ -1,0 +1,21 @@
+// HEARTH H058 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H058.md
+// Hipótese: Os agentes de ameaças estão carregando drivers vulneráveis legítimos, como ThrottleStop.sys e rwdrv.sys, de TechPowerUp para obter acesso de gravação no nível do kernel, permitindo o carregamento e execução subsequente de chaves maliciosas não assinadas...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (45)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1068", "privilege escalation", "byovd", "edr killer", "ransomware", "H058", "loading", "legitimate", "vulnerable", "drivers", "such", "ThrottleStop.sys", "rwdrv.sys", "TechPowerUp", "gain", "kernel-level", "write", "access", "enabling", "subsequent", "execution", "unsigned", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H058", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H058.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

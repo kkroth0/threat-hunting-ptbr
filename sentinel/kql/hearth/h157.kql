@@ -1,0 +1,21 @@
+// HEARTH H157 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H157.md
+// Hipótese: os agentes de ameaças estão anexando um filtro de senha malicioso DLL (por exemplo, passms.dll) a pacotes HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Notification (REG_MULTI_SZ) em um controlador de domínio - recebendo credenciais de texto não criptografado...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (44)
+// Tabelas: SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1556.008", "T1547.005", "T1556.002", "credential access", "lsa", "password filter", "domain controller", "windows", "H157", "appending", "malicious", "Password", "Filter", "passms.dll", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\Notification", "Packages", "REG_MULTI_SZ", "Controller", "receiving", "cleartext", "credentials", "PasswordFilter", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H157", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H157.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

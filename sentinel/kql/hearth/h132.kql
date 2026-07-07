@@ -1,0 +1,21 @@
+// HEARTH H132 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H132.md
+// Hipótese: Um adversário está usando cadeias curl-to-osascript ou curl-to-shell em cascata em macOS para baixar e executar imediatamente cargas úteis de vários estágios sem gravar arquivos intermediários no disco, indicado pelo canal de saída curl di...
+// Padrão: script suspeito e execução de comando
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (29)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, Syslog, Heartbeat, CommonSecurityLog
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1059.002", "applescript", "curl pipe", "macos", "fileless", "H132", "cascading", "curl-to-osascript", "curl-to-shell", "chains", "macOS", "download", "immediately", "execute", "multi-stage", "payloads", "without", "writing", "intermediate", "files", "disk", "indicated", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H132", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H132.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

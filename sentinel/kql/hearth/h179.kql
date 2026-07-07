@@ -1,0 +1,23 @@
+// HEARTH H179 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H179.md
+// Hipótese: Um processo em execução dentro de um contêiner Linux está escapando para o host por um dos caminhos de configuração incorreta de alto sinal - gravando uma carga útil em um cgroup release_agent (classe CVE-2022-0492), carregando um módulo do kernel via insm...
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (30)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, AzureActivity, AzureDiagnostics, OrcaAlerts_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1611", "privilege escalation", "linux", "containers", "container escape", "kubernetes", "docker socket", "cgroup", "kernel module", "H179", "process", "running", "inside", "Linux", "container", "escaping", "high-signal", "misconfiguration", "paths", "writing", "payload", "release_agent", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H179", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H179.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

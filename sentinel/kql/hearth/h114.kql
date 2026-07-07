@@ -1,0 +1,23 @@
+// HEARTH H114 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H114.md
+// Hipótese: um adversário está usando envenenamento ou malvertising SEO para colocar instaladores de software trojanizados nos resultados de mecanismos de pesquisa, enganando os usuários que procuram ferramentas IT legítimas para baixar pacotes com malware que implantam...
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (64)
+// Tabelas: Cloudflare_CL, CommonSecurityLog, AzureDiagnostics, AppRequests, AppTraces, Syslog, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, NetskopeEventsNetwork_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1189", "initial access", "seo poisoning", "malvertising", "drive by", "H114", "poisoning", "place", "trojanized", "software", "installers", "search", "engine", "results", "tricking", "users", "searching", "legitimate", "tools", "downloading", "malware-laced", "packages", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H114", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H114.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

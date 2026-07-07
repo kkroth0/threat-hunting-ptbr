@@ -1,0 +1,21 @@
+// HEARTH H038 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H038.md
+// Hipótese: os atores da ameaça estão usando o cmdlet Compress-Archive do PowerShell para compactar dados roubados de vítimas em arquivos ZIP para exfiltração em servidores controlados pelo invasor.
+// Padrão: script suspeito e execução de comando
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (28)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, Syslog, Heartbeat, CommonSecurityLog
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1560", "archive collected data", "powershell", "H038", "PowerShell", "Compress-Archive", "cmdlet", "compress", "stolen", "victim", "archives", "exfiltration", "attacker-controlled", "servers", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H038", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H038.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

@@ -1,0 +1,31 @@
+// HEARTH H076 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H076.md
+// Hipótese: um adversário está reivindicando domínios expirados e implantação URLs de suplementos abandonados do Microsoft Office para servir páginas de phishing de credenciais dentro do Outlook visando usuários corporativos que possuem suplementos obsoletos instalados para coletar...
+// Padrão: IOC e varredura do indicador
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P1 (75)
+// Tabelas: CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, AzureDiagnostics, AppRequests
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntId = "H076";
+let sourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H076.md";
+let huntTerms = dynamic(["T1195.002", "T1056.002", "T1114", "initial access", "credential access", "outlook", "office addin", "supply chain", "agreetosteal", "H076", "claiming", "expired", "domains", "deployment", "URLs", "abandoned", "Microsoft", "Office", "add-ins", "serve", "credential", "phishing"]);
+union withsource=SourceTable isfuzzy=true
+    CommonSecurityLog,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL,
+    Cloudflare_CL,
+    NetskopeAlerts_CL,
+    SigninLogs,
+    AuditLogs,
+    IdentityInfo,
+    BehaviorAnalytics,
+    UserPeerAnalytics,
+    AzureDiagnostics,
+    AppRequests
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = huntId, SourceUrl = sourceUrl
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

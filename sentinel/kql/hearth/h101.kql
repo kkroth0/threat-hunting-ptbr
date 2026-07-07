@@ -1,0 +1,31 @@
+// HEARTH H101 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H101.md
+// Hipótese: Os agentes de ameaças estão usando credenciais administrativas comprometidas do Microsoft Intune para emitir comandos de limpeza remota em dispositivos móveis e estações de trabalho registrados na empresa para destruir dados em escala e interromper as operações de negócios...
+// Padrão: correlação Sentinel específica da hipótese
+// Cobertura: Parcial - é necessário ajuste personalizado
+// Prioridade: P3 (36)
+// Tabelas: ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntId = "H101";
+let sourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H101.md";
+let huntTerms = dynamic(["T1485", "intune", "mdm", "wiper", "H101", "compromised", "Microsoft", "Intune", "administrative", "credentials", "issue", "remote", "wipe", "commands", "enterprise-enrolled", "mobile", "devices", "workstations", "destroy", "scale", "disrupt", "business"]);
+union withsource=SourceTable isfuzzy=true
+    ThreatIntelIndicators,
+    Watchlist,
+    SecurityAlert,
+    SecurityIncident,
+    Anomalies,
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL,
+    SigninLogs,
+    AuditLogs,
+    IdentityInfo
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = huntId, SourceUrl = sourceUrl
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

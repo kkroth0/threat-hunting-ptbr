@@ -1,0 +1,23 @@
+// HEARTH H035 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H035.md
+// Hipótese: Os adversários estão usando dispositivos USB com cargas maliciosas, como Rubber Ducky, para obter acesso inicial a instalações OT isoladas e redes ICS.
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (57)
+// Tabelas: Cloudflare_CL, CommonSecurityLog, AzureDiagnostics, AppRequests, AppTraces, Syslog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, NetskopeAlerts_CL, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntTerms = dynamic(["T0847", "T1091", "T1200", "initial access", "hardware additions", "air gap", "H035", "devices", "malicious", "payloads", "such", "Rubber", "Ducky", "gain", "initial", "access", "air-gapped", "facilities", "networks", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H035", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H035.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

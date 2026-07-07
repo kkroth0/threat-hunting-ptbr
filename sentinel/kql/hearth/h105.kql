@@ -1,0 +1,23 @@
+// HEARTH H105 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H105.md
+// Hipótese: Um adversário está explorando uma vulnerabilidade conhecida em um aplicativo voltado para a Internet, como o Apache ActiveMQ (CVE-2023-46604) para obter execução remota de código e estabelecer acesso inicial ao ambiente.
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (44)
+// Tabelas: Cloudflare_CL, CommonSecurityLog, AzureDiagnostics, AppRequests, AppTraces, Syslog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, NetskopeAlerts_CL, ThreatIntelIndicators, Watchlist, SecurityAlert
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1190", "initial access", "cve 2023 46604", "activemq", "exploit", "rce", "H105", "exploiting", "known", "vulnerability", "internet-facing", "application", "such", "Apache", "ActiveMQ", "CVE-2023-46604", "achieve", "remote", "code", "execution", "establish", "initial", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H105", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H105.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

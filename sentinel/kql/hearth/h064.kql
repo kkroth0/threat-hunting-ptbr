@@ -1,0 +1,21 @@
+// HEARTH H064 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H064.md
+// Hipótese: Os atores da ameaça estão usando nomes de domínio internacionais codificados em Punycode (IDNs) com o prefixo "xn--" em consultas DNS para mascarar nomes de domínio visualmente semelhantes que personificam serviços legítimos para coleta de credenciais...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (44)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1036.005", "defense evasion", "punycode", "idn", "dns", "H064", "Punycode-encoded", "International", "Names", "IDNs", "xn--", "prefix", "queries", "masquerade", "visually", "similar", "names", "that", "impersonate", "legitimate", "services", "credential", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H064", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H064.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

@@ -1,0 +1,21 @@
+// HEARTH H026 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H026.md
+// Hipótese: os agentes da ameaça estão usando a ferramenta de linha de comando integrada Windows, 'cipher.exe', com a opção '/w' para substituir o espaço livre nas partições do disco rígido da vítima, dificultando a recuperação forense de arquivos excluídos após a implantação...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (50)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, AzureActivity, AzureDiagnostics, OrcaAlerts_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1070.004", "defenseevasion", "cipher exe", "H026", "Windows", "built-in", "command-line", "tool", "cipher.exe", "option", "overwrite", "free", "space", "victim", "hard", "drive", "partitions", "hindering", "forensic", "recovery", "deleted", "files", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H026", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H026.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

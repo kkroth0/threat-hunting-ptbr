@@ -1,0 +1,40 @@
+// HEARTH H057 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H057.md
+// Hipótese: Os adversários estão executando scripts PowerShell que enumeram todos os compartilhamentos de rede e unidades locais acessíveis para identificar arquivos contendo credenciais de autenticação, como senhas armazenadas em arquivos em lote, dados administrativos...
+// Padrão: anomalia de autenticação e revisão de força bruta
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (49)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let failureThreshold = 8;
+let huntTerms = dynamic(["T1135", "financial", "powershell", "H057", "executing", "PowerShell", "scripts", "that", "enumerate", "accessible", "network", "shares", "drives", "identify", "files", "containing", "authentication", "credentials", "such", "passwords", "stored", "batch"]);
+let failures =
+    SigninLogs
+    | where TimeGenerated >= ago(lookback)
+    | where ResultType != "0"
+    | summarize
+        FailedAttempts = count(),
+        FailureIPs = make_set(IPAddress, 20),
+        FailureApps = make_set(AppDisplayName, 20),
+        LastFailure = max(TimeGenerated)
+        by UserPrincipalName;
+let successes =
+    SigninLogs
+    | where TimeGenerated >= ago(lookback)
+    | where ResultType == "0"
+    | summarize
+        Successes = count(),
+        SuccessIPs = make_set(IPAddress, 20),
+        SuccessApps = make_set(AppDisplayName, 20),
+        FirstSuccess = min(TimeGenerated)
+        by UserPrincipalName;
+let authFindings =
+    failures
+    | where FailedAttempts >= failureThreshold
+    | join kind=inner successes on UserPrincipalName
+    | where LastFailure <= FirstSuccess
+    | extend HuntId = "H057", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H057.md";
+authFindings
+| project HuntId, SourceUrl, UserPrincipalName, FailedAttempts, Successes, FailureIPs, SuccessIPs, FailureApps, SuccessApps, LastFailure, FirstSuccess
+| order by FailedAttempts desc

@@ -1,0 +1,23 @@
+// HEARTH H095 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H095.md
+// Hipótese: Um adversário está explorando servidores de automação de fluxo de trabalho n8n por meio de injeção de expressão (CVE-2025-68613) para executar comandos arbitrários e usar a confiança interna e integrações da plataforma para movimentação lateral e credenciais...
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P4 (25)
+// Tabelas: Cloudflare_CL, CommonSecurityLog, AzureDiagnostics, AppRequests, AppTraces, Syslog, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, ThreatIntelIndicators
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1059", "execution", "rce", "n8n", "cisa kev", "cve 2025 68613", "workflow automation", "lateral movement", "credential access", "H095", "exploiting", "workflow", "automation", "servers", "expression", "injection", "CVE-2025-68613", "execute", "arbitrary", "commands", "platform", "internal", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H095", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H095.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

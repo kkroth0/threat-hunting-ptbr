@@ -1,0 +1,21 @@
+// HEARTH H075 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H075.md
+// Hipótese: Um adversário está implantando autorização de pacote único baseada em iptables em dispositivos Linux comprometidos para criar backdoors que atacam portas visando a infraestrutura de rede para manter o acesso secreto persistente invisível para...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (46)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, Syslog, Heartbeat, CommonSecurityLog, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntTerms = dynamic(["T1205.001", "T1562.004", "defense evasion", "iptables", "port knocking", "spa", "unc6201", "H075", "deploying", "iptables-based", "Single", "Packet", "Authorization", "compromised", "Linux", "appliances", "create", "port-knocking", "backdoors", "targeting", "network", "infrastructure", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H075", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H075.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

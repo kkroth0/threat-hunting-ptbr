@@ -1,0 +1,21 @@
+// HEARTH H138 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H138.md
+// Hipótese: um adversário usando um token de conta de serviço GCP roubado ou comprometido está executando uma sequência de enumeração rápida - listando projetos, serviços, ligações IAM e recursos de computação em minutos - para mapear o raio de explosão...
+// Padrão: correlação de abuso de identidade token/OAuth
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (49)
+// Tabelas: SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, AzureActivity, AzureDiagnostics, OrcaAlerts_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1580", "T1526", "T1069.003", "gcp", "cloud", "iam enumeration", "service account", "H138", "stolen", "compromised", "service", "account", "token", "performing", "rapid", "enumeration", "sequence", "listing", "projects", "services", "bindings", "compute"]);
+union withsource=SourceTable isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    OfficeActivity
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+    or SearchBlob has_any ("deviceCode", "oauth", "refresh token", "consent", "service principal", "Microsoft Graph")
+| extend HuntId = "H138", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H138.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

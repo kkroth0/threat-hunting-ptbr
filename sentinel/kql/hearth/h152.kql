@@ -1,0 +1,31 @@
+// HEARTH H152 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H152.md
+// Hipótese: os atores da ameaça registram credenciais de chave controladas pelo invasor em msDS-KeyCredentialLink em objetos AD user/computer privilegiados (Whisker, pyWhisker, Certipy shadow auto) para obter uma autenticação PKINIT persistente sem senha...
+// Padrão: correlação Sentinel específica da hipótese
+// Cobertura: Parcial - é necessário ajuste personalizado
+// Prioridade: P4 (27)
+// Tabelas: SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntId = "H152";
+let sourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H152.md";
+let huntTerms = dynamic(["T1556", "T1550", "T1649", "credential access", "shadow credentials", "ad cs", "windows", "H152", "register", "attacker-controlled", "credentials", "msDS-KeyCredentialLink", "privileged", "user/computer", "objects", "Whisker", "pyWhisker", "Certipy", "shadow", "auto", "obtain", "persistent"]);
+union withsource=SourceTable isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    IdentityInfo,
+    BehaviorAnalytics,
+    UserPeerAnalytics,
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL,
+    ThreatIntelIndicators,
+    Watchlist,
+    SecurityAlert
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = huntId, SourceUrl = sourceUrl
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

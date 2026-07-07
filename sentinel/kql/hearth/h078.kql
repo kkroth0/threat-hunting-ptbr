@@ -1,0 +1,23 @@
+// HEARTH H078 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H078.md
+// Hipótese: Um adversário está explorando objetos OLE do Microsoft Office para buscar cargas úteis em WebDAV e estabelecer um backdoor do Outlook VBA visando organizações de defesa e logística para conduzir espionagem de longo prazo via nuvem...
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (59)
+// Tabelas: Cloudflare_CL, CommonSecurityLog, AzureDiagnostics, AppRequests, AppTraces, Syslog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, NetskopeAlerts_CL, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1566.001", "T1059.005", "T1546.015", "T1102", "initial access", "execution", "persistence", "command and control", "apt28", "notdoor", "com hijacking", "H078", "exploiting", "Microsoft", "Office", "objects", "fetch", "payloads", "over", "WebDAV", "establish", "Outlook", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H078", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H078.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

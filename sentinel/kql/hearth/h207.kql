@@ -1,0 +1,21 @@
+// HEARTH H207 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H207.md
+// Hipótese: Um interpretador de script Windows (powershell.exe, wscript.exe, cscript.exe, mshta.exe ou outro binário que não seja de navegador) faz uma solicitação de saída DNS/HTTPS para uma plataforma dead-drop conhecida (telegra.ph, teletype.in, t.me, alugar...
+// Padrão: script suspeito e execução de comando
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P1 (72)
+// Tabelas: CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntTerms = dynamic(["T1572", "H207", "Windows", "scripting", "interpreter", "powershell.exe", "wscript.exe", "cscript.exe", "mshta.exe", "other", "non-browser", "binary", "makes", "outbound", "DNS/HTTPS", "request", "known", "dead-drop", "platform", "telegra.ph", "teletype.in", "t.me", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H207", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H207.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

@@ -1,0 +1,21 @@
+// HEARTH H147 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H147.md
+// Hipótese: os atores da ameaça entregam infostealers macOS por meio de iscas ClickFix que enganam os usuários para que colem um pipeline de shell codificado em base64 no Terminal, decodificando em um osascript curl-piped ou carga útil sh.
+// Padrão: script suspeito e execução de comando
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (49)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1204.004", "T1059.002", "macos", "clickfix", "shub stealer", "amos", "osascript", "H147", "deliver", "macOS", "infostealers", "ClickFix", "lures", "that", "trick", "users", "pasting", "base64-encoded", "shell", "pipeline", "Terminal", "decoding", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H147", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H147.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

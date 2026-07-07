@@ -1,0 +1,23 @@
+// HEARTH H161 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H161.md
+// Hipótese: um invasor em um host Linux comprometido (Confluence ou F5 BIG-IP) está executando a coerção de retransmissão NTLM contra um controlador de domínio Windows interno - executando respondedor, ntlmrelayx, kerbrute ou um CVE-2025-33073 PoC para c...
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (40)
+// Tabelas: SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1557", "T1110.003", "T1190", "T1187", "credential access", "ntlm relay", "cve 2025 33073", "linux", "confluence", "f5", "H161", "attacker", "compromised", "Linux", "Confluence", "BIG-IP", "performing", "NTLM", "relay", "coercion", "internal", "Windows", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H161", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H161.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

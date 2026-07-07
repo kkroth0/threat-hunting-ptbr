@@ -1,0 +1,21 @@
+// HEARTH H045 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H045.md
+// Hipótese: os atores da ameaça estão usando MSHTA.exe para baixar e executar scripts HTA a partir de endereços IP codificados (por exemplo, http://[IP]/[PORT].hta) que contêm comandos de shell reverso PowerShell codificados em Base64 para estabelecer C2 persistente...
+// Padrão: script suspeito e execução de comando
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (29)
+// Tabelas: CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, SecurityEvent, WindowsEvent
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1218.005", "execution", "mshta", "living off the land", "H045", "MSHTA.exe", "download", "execute", "scripts", "hardcoded", "addresses", "PORT", "which", "contain", "Base64-encoded", "PowerShell", "reverse", "shell", "commands", "establish", "persistent", "connections", "powershell", "cmd.exe", "wscript", "cscript", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H045", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H045.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

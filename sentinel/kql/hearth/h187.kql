@@ -1,0 +1,21 @@
+// HEARTH H187 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H187.md
+// Hipótese: um executável legitimamente assinado por código foi renomeado e está carregando lateralmente um unsigned/invalid-signature DLL a partir de um caminho não padrão gravável pelo usuário (carregamento lateral OceanLotus binário assinado DLL).
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (40)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1553.002", "T1574.002", "defense evasion", "dll side loading", "oceanlotus", "apt32", "spectralviper", "windows", "sysmon", "H187", "legitimately", "code-signed", "executable", "been", "renamed", "side-loading", "unsigned/invalid-signature", "user-writable", "non-standard", "path", "OceanLotus", "signed-binary", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H187", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H187.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

@@ -1,0 +1,31 @@
+// HEARTH H181 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H181.md
+// Hipótese: Adversários (UNC3753 / Luna Moth) usam o shell de comando Windows para baixar curl um RMM MSI e instalá-lo com msiexec /i ... /quiet após um compartilhamento de tela orientado por vishing, estabelecendo acesso remoto sem tradicional...
+// Padrão: IOC e varredura do indicador
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (32)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, OfficeActivity, AuditLogs, SigninLogs
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntId = "H181";
+let sourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H181.md";
+let huntTerms = dynamic(["T1219", "T1569.002", "T1566.004", "T1059.003", "rmm", "msiexec", "curl", "luna moth", "windows", "H181", "UNC3753", "Luna", "Moth", "Windows", "command", "shell", "curl-download", "install", "quiet", "vishing-driven", "screen-share", "establishing"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL,
+    CommonSecurityLog,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL,
+    Cloudflare_CL,
+    NetskopeAlerts_CL,
+    OfficeActivity,
+    AuditLogs,
+    SigninLogs
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = huntId, SourceUrl = sourceUrl
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

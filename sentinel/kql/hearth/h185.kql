@@ -1,0 +1,27 @@
+// HEARTH H185 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H185.md
+// Hipótese: Adversários (VerdantBamboo) executam BRICKSTORM em dispositivos de borda usando domínios WebSocket-over-HTTPS C2 para Cloudflare mais DNS-over-HTTPS para 8.8.8.8; caça tráfego de saída web/DoH proveniente do gerenciamento de dispositivos...
+// Padrão: Rede, DNS e correlação de anomalia de saída
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P1 (72)
+// Tabelas: CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, SecurityEvent, WindowsEvent
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntTerms = dynamic(["T1572", "T1090.001", "T1071.004", "T1071.001", "command and control", "brickstorm", "websocket", "doh", "edge appliance", "verdantbamboo", "H185", "VerdantBamboo", "BRICKSTORM", "edge", "appliances", "WebSocket-over-HTTPS", "Cloudflare-fronted", "domains", "plus", "DNS-over-HTTPS", "8.8.8.8", "outbound", "dns", "http", "https", "ssh", "rdp", "smb", "tunnel", "beacon", "c2", "block", "deny"]);
+union withsource=SourceTable isfuzzy=true
+    CommonSecurityLog,
+    Cloudflare_CL,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL,
+    NetskopeAlerts_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H185", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H185.md"
+| summarize
+    Events = count(),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated),
+    Samples = make_set(SearchBlob, 3)
+    by HuntId, SourceUrl, SourceTable
+| order by Events desc

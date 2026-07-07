@@ -1,0 +1,21 @@
+// HEARTH H097 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H097.md
+// Hipótese: um adversário está usando páginas de isca ClickFix que se fazem passar por software legítimo (Microsoft Teams, Homebrew, Ledger Live) para fazer com que usuários de engenharia social executem comandos maliciosos que implantam o infostealer Odyssey para c...
+// Padrão: correlação de abuso de identidade token/OAuth
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (48)
+// Tabelas: SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, OfficeActivity, NetskopeEventsApplication_CL, NetskopeEventsAudit_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1204.002", "execution", "initial access", "clickfix", "infostealer", "odyssey stealer", "social engineering", "credential theft", "session hijacking", "H097", "ClickFix", "lure", "pages", "impersonating", "legitimate", "software", "Microsoft", "Teams", "Homebrew", "Ledger", "Live", "social-engineer"]);
+union withsource=SourceTable isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    OfficeActivity
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+    or SearchBlob has_any ("deviceCode", "oauth", "refresh token", "consent", "service principal", "Microsoft Graph")
+| extend HuntId = "H097", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H097.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

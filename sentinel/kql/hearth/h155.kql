@@ -1,0 +1,31 @@
+// HEARTH H155 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H155.md
+// Hipótese: os atores da ameaça estão enviando certificados de usuário roubados ou forjados (de abuso de ESC1, credenciais ocultas ou PFX extraídos) para um controlador de domínio via PKINIT - aparecendo como solicitações Kerberos TGT com PreAuthType=16 e Ti...
+// Padrão: IOC e varredura do indicador
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (44)
+// Tabelas: SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntId = "H155";
+let sourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H155.md";
+let huntTerms = dynamic(["T1550", "T1649", "T1556", "lateral movement", "pkinit", "kerberos", "ad cs", "windows", "H155", "submitting", "stolen", "forged", "user", "certificates", "ESC1", "abuse", "shadow", "credentials", "extracted", "Controller", "PKINIT", "appearing"]);
+union withsource=SourceTable isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    IdentityInfo,
+    BehaviorAnalytics,
+    UserPeerAnalytics,
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL,
+    CommonSecurityLog,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = huntId, SourceUrl = sourceUrl
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

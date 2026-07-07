@@ -1,0 +1,23 @@
+// HEARTH H082 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H082.md
+// Hipótese: Um adversário está envenenando configurações de projetos de ferramentas de codificação AI, como ganchos, servidores MCP e variáveis de ambiente em repositórios compartilhados visando estações de trabalho de desenvolvedores para obter execução remota de código e criação API...
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (57)
+// Tabelas: Cloudflare_CL, CommonSecurityLog, AzureDiagnostics, AppRequests, AppTraces, Syslog, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, NetskopeEventsNetwork_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntTerms = dynamic(["T1195.001", "T1059.004", "initial access", "execution", "supply chain", "mcp", "ai coding tools", "claude code", "H082", "poisoning", "coding", "tool", "project", "configurations", "such", "hooks", "servers", "environment", "variables", "shared", "repositories", "targeting", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H082", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H082.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

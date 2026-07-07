@@ -1,0 +1,23 @@
+// HEARTH H080 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H080.md
+// Hipótese: Um adversário está usando avisos falsos de verificação humana para induzir os usuários a executar comandos injetados na área de transferência visando organizações do setor hoteleiro para implantar trojans de acesso remoto para roubo de credenciais e dados...
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (57)
+// Tabelas: SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, Cloudflare_CL, CommonSecurityLog, AzureDiagnostics, AppRequests, AppTraces, Syslog, NetskopeEventsNetwork_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntTerms = dynamic(["T1566.002", "T1204.002", "T1219", "initial access", "execution", "command and control", "clickfix", "social engineering", "rat", "H080", "fake", "human-verification", "prompts", "trick", "users", "executing", "clipboard-injected", "commands", "targeting", "hospitality", "sector", "organizations", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H080", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H080.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

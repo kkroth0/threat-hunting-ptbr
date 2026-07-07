@@ -1,0 +1,31 @@
+// HEARTH H166 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H166.md
+// Hipótese: Uma sessão SSH privilegiada para um host Linux interno (Confluence, Tomcat, SSH bastion ou qualquer servidor Linux associado ao domínio) é originada do gerenciamento IP de um F5 BIG-IP edge appliance - um caminho que quase nunca...
+// Padrão: IOC e varredura do indicador
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (50)
+// Tabelas: CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntId = "H166";
+let sourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H166.md";
+let huntTerms = dynamic(["T1021.004", "lateral movement", "linux", "f5 big ip", "edge appliance", "ssh", "confluence", "storm 2949 adjacent", "H166", "privileged", "session", "internal", "Linux", "Confluence", "Tomcat", "bastion", "domain-joined", "server", "originating", "management", "BIG-IP", "edge"]);
+union withsource=SourceTable isfuzzy=true
+    CommonSecurityLog,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL,
+    Cloudflare_CL,
+    NetskopeAlerts_CL,
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL,
+    SigninLogs,
+    AuditLogs,
+    IdentityInfo
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = huntId, SourceUrl = sourceUrl
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

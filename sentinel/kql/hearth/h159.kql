@@ -1,0 +1,21 @@
+// HEARTH H159 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H159.md
+// Hipótese: os operadores Kazuar estão usando Exchange Web Services (EWS) como um canal secreto de comando e controle - operações CreateItem, FindItem, GetItem, UpdateItem e DeleteItem SOAP contra /EWS/Exchange.asmx de um comprometimento...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (60)
+// Tabelas: CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, OfficeActivity, AuditLogs, SigninLogs
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntTerms = dynamic(["T1114.002", "T1102", "T1071.003", "command and control", "kazuar", "ews", "exchange", "m365", "H159", "Kazuar", "operators", "Exchange", "Services", "covert", "command-and-control", "channel", "CreateItem", "FindItem", "GetItem", "UpdateItem", "DeleteItem", "SOAP", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H159", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H159.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

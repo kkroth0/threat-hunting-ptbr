@@ -1,0 +1,21 @@
+// HEARTH H074 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H074.md
+// Hipótese: Um adversário está criando interfaces de rede virtuais temporárias em máquinas virtuais hospedadas em ESXi para se transformar em redes internas e infraestrutura SaaS visando organizações com ambientes VMware para manter...
+// Padrão: script suspeito e execução de comando
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (50)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntTerms = dynamic(["T1021", "T1497", "lateral movement", "defense evasion", "esxi", "vmware", "ghost nic", "unc6201", "H074", "creating", "temporary", "virtual", "network", "interfaces", "ESXi-hosted", "machines", "pivot", "internal", "networks", "SaaS", "infrastructure", "targeting", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H074", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H074.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

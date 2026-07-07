@@ -1,0 +1,21 @@
+// HEARTH H096 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H096.md
+// Hipótese: um adversário está explorando vulnerabilidades FortiGate NGFW para exfiltrar arquivos de configuração de dispositivo contendo credenciais de conta de serviço em texto simples Active Directory e LDAP para movimento lateral subsequente e privilégio...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (45)
+// Tabelas: SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, Cloudflare_CL, CommonSecurityLog, AzureDiagnostics
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1552.001", "credential access", "fortinet", "fortigate", "active directory", "ldap", "lateral movement", "healthcare", "government", "cve 2024 47575", "cve 2024 55591", "H096", "exploiting", "FortiGate", "NGFW", "vulnerabilities", "exfiltrate", "device", "configuration", "files", "containing", "plaintext", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H096", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H096.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

@@ -46,5 +46,5 @@ artifacts/
 samples/
 
 # Local external repository checkouts
-HEARTH/
-hearth/
+/HEARTH/
+/hearth/

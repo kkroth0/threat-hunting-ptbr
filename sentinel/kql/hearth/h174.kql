@@ -1,0 +1,31 @@
+// HEARTH H174 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H174.md
+// Hipótese: Um aplicativo macOS GUI autenticado entregue via malvertising (mascarado como PodcastsLounge, PDF-Brain ou PDF-Ninja) está gerando um shell Unix de seu pacote .app para imprimir a impressão digital do host via ioreg -rd1 -c IOPlatform...
+// Padrão: IOC e varredura do indicador
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (32)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, Syslog, Heartbeat, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, OfficeActivity
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntId = "H174";
+let sourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H174.md";
+let huntTerms = dynamic(["T1059.004", "macos", "unix shell", "malvertising", "browser hijack", "flutter", "notarized malware", "search hijack", "H174", "notarized", "macOS", "application", "delivered", "masquerading", "PodcastsLounge", "PDF-Brain", "PDF-Ninja", "spawning", "Unix", "shell", "bundle", "fingerprint"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL,
+    Syslog,
+    Heartbeat,
+    CommonSecurityLog,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL,
+    Cloudflare_CL,
+    NetskopeAlerts_CL,
+    OfficeActivity
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = huntId, SourceUrl = sourceUrl
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

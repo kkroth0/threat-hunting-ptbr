@@ -1,0 +1,27 @@
+// HEARTH H141 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H141.md
+// Hipótese: um pacote npm malicioso executado durante a instalação do npm em uma estação de trabalho de desenvolvedor ou executor CI está coletando variáveis de ambiente, dotfiles (~/.npmrc, ~/.aws/credentials, ~/.ssh/id_*) e arquivos de credenciais de nuvem por meio de um p...
+// Padrão: Rede, DNS e correlação de anomalia de saída
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P1 (87)
+// Tabelas: CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent, WindowsEvent
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntTerms = dynamic(["T1195.002", "T1555", "initial access", "credential access", "supply chain", "npm", "developer endpoint", "ci cd", "H141", "malicious", "package", "executed", "during", "install", "developer", "workstation", "runner", "harvesting", "environment", "variables", "dotfiles", "npmrc", "dns", "http", "https", "ssh", "rdp", "smb", "tunnel", "beacon", "c2", "block", "deny"]);
+union withsource=SourceTable isfuzzy=true
+    CommonSecurityLog,
+    Cloudflare_CL,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL,
+    NetskopeAlerts_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H141", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H141.md"
+| summarize
+    Events = count(),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated),
+    Samples = make_set(SearchBlob, 3)
+    by HuntId, SourceUrl, SourceTable
+| order by Events desc

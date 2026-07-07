@@ -1,0 +1,21 @@
+// HEARTH H165 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H165.md
+// Hipótese: um aplicativo .NET legítimo (por exemplo, setup.exe, update.exe) está sendo sequestrado por meio de um arquivo <appname>.exe.config plantado por um invasor que define <appDomainManagerAssembly> e <appDomainManagerType> como um malware DLL - com...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (50)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntTerms = dynamic(["T1574.001", "T1053.005", "T1562.006", "T1574.014", "defense evasion", "appdomainmanager", "screening serpens", "iran", "windows", "H165", "legitimate", "application", "setup.exe", "update.exe", "hijacked", "attacker-planted", "appname", "exe.config", "file", "that", "sets", "appDomainManagerAssembly", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H165", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H165.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

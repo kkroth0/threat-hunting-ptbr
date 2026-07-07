@@ -1,0 +1,22 @@
+// HEARTH H145 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H145.md
+// Hipótese: os atores da ameaça estão usando a automação COM do Outlook de um processo host que não é do Office para enumerar contatos e enviar e-mails de phishing da caixa de correio da vítima.
+// Padrão: auditoria SaaS/M365 e revisão de atividade de caixa de correio
+// Cobertura: Starter - validar telemetria SaaS
+// Prioridade: P1 (72)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, OfficeActivity, AuditLogs, SigninLogs, NetskopeEventsApplication_CL, NetskopeEventsAudit_CL, NetskopeEventsPage_CL, CommonSecurityLog, NetskopeEventsNetwork_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1114.001", "T1534", "lateral movement", "outlook com", "internal spearphishing", "H145", "Outlook", "automation", "non-Office", "process", "enumerate", "contacts", "send", "phishing", "emails", "victim", "mailbox", "New-InboxRule", "Set-InboxRule", "Mailbox", "Consent", "service principal", "SharePoint", "Teams", "OneDrive", "BCC", "forward"]);
+union withsource=SourceTable isfuzzy=true
+    OfficeActivity,
+    AuditLogs,
+    SigninLogs,
+    NetskopeEventsApplication_CL,
+    NetskopeEventsAudit_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H145", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H145.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

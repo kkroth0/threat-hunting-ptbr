@@ -1,0 +1,21 @@
+// HEARTH H106 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H106.md
+// Hipótese: Um adversário está usando técnicas de representação de pipe nomeado ou manipulação de token, como o comando GetSystem do Meterpreter para escalar privilégios de um contexto de administrador local para NT AUTHORITY\SYSTEM em um comprometido...
+// Padrão: correlação de abuso de identidade token/OAuth
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (36)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, CyberArk_AuditEvents_CL, AuditLogs, SigninLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, ThreatIntelIndicators, Watchlist
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntTerms = dynamic(["T1134.005", "T1134", "privilege escalation", "named pipe", "getsystem", "H106", "named", "pipe", "impersonation", "token", "manipulation", "techniques", "such", "Meterpreter", "GetSystem", "command", "escalate", "privileges", "administrator", "context", "AUTHORITY\\SYSTEM", "compromised"]);
+union withsource=SourceTable isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    OfficeActivity
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+    or SearchBlob has_any ("deviceCode", "oauth", "refresh token", "consent", "service principal", "Microsoft Graph")
+| extend HuntId = "H106", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H106.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

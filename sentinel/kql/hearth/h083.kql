@@ -1,0 +1,21 @@
+// HEARTH H083 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H083.md
+// Hipótese: Um adversário está explorando falhas da estrutura MSHTML em arquivos de atalho Windows criados com HTML incorporado para contornar a Marca da Web e os limites de segurança do navegador visando endpoints corporativos Windows para obter arbitragem...
+// Padrão: revisão do plano de controle da nuvem e do abuso de postura
+// Cobertura: Starter - validar telemetria em nuvem
+// Prioridade: P2 (49)
+// Tabelas: Cloudflare_CL, CommonSecurityLog, AzureDiagnostics, AppRequests, AppTraces, Syslog, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1566.001", "T1553.005", "initial access", "defense evasion", "mshtml", "motw bypass", "lnk", "apt28", "H083", "exploiting", "MSHTML", "framework", "flaws", "crafted", "Windows", "Shortcut", "files", "embedded", "HTML", "bypass", "Mark-of-the-Web", "browser", "roleAssignments", "delete", "write", "storage", "bucket", "iam", "diagnosticSettings", "critical", "high"]);
+union withsource=SourceTable isfuzzy=true
+    AzureActivity,
+    AzureDiagnostics,
+    OrcaAlerts_CL,
+    NetskopeEventsNetwork_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H083", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H083.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

@@ -1,0 +1,31 @@
+// HEARTH H112 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H112.md
+// Hipótese: um adversário está executando um ransomware que criptografa rapidamente arquivos em armazenamento local e acessível pela rede, indicado por uma alta taxa de eventos de modificação de arquivos, alterações em massa de extensões de arquivos e criação de n...
+// Padrão: correlação Sentinel específica da hipótese
+// Cobertura: Parcial - é necessário ajuste personalizado
+// Prioridade: P2 (59)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntId = "H112";
+let sourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H112.md";
+let huntTerms = dynamic(["T1486", "ransomware", "encryption", "lockbit", "data encrypted for impact", "H112", "executing", "that", "rapidly", "encrypts", "files", "network-accessible", "storage", "indicated", "high", "rate", "file", "modification", "mass", "extension", "changes", "creation"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL,
+    ThreatIntelIndicators,
+    Watchlist,
+    SecurityAlert,
+    SecurityIncident,
+    Anomalies,
+    CommonSecurityLog,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsConnection_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = huntId, SourceUrl = sourceUrl
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

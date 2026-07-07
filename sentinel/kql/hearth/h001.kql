@@ -1,0 +1,40 @@
+// HEARTH H001 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H001.md
+// Hipótese: um adversário está tentando aplicar força bruta à conta do administrador no gateway VPN voltado externamente.
+// Padrão: anomalia de autenticação e revisão de força bruta
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P1 (65)
+// Tabelas: SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let failureThreshold = 8;
+let huntTerms = dynamic(["T1110", "credentialaccess", "bruteforce", "vpn", "H001", "attempting", "brute", "force", "admin", "account", "externally", "facing", "gateway"]);
+let failures =
+    SigninLogs
+    | where TimeGenerated >= ago(lookback)
+    | where ResultType != "0"
+    | summarize
+        FailedAttempts = count(),
+        FailureIPs = make_set(IPAddress, 20),
+        FailureApps = make_set(AppDisplayName, 20),
+        LastFailure = max(TimeGenerated)
+        by UserPrincipalName;
+let successes =
+    SigninLogs
+    | where TimeGenerated >= ago(lookback)
+    | where ResultType == "0"
+    | summarize
+        Successes = count(),
+        SuccessIPs = make_set(IPAddress, 20),
+        SuccessApps = make_set(AppDisplayName, 20),
+        FirstSuccess = min(TimeGenerated)
+        by UserPrincipalName;
+let authFindings =
+    failures
+    | where FailedAttempts >= failureThreshold
+    | join kind=inner successes on UserPrincipalName
+    | where LastFailure <= FirstSuccess
+    | extend HuntId = "H001", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H001.md";
+authFindings
+| project HuntId, SourceUrl, UserPrincipalName, FailedAttempts, Successes, FailureIPs, SuccessIPs, FailureApps, SuccessApps, LastFailure, FirstSuccess
+| order by FailedAttempts desc

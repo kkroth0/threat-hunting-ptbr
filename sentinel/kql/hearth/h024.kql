@@ -1,0 +1,21 @@
+// HEARTH H024 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H024.md
+// Hipótese: Os atores da ameaça estão usando a técnica de engenharia social ClickFix para induzir os usuários a copiar e colar comandos PowerShell maliciosos na caixa de diálogo de execução do sistema, resultando na execução do carregamento GHOSTPULSE...
+// Padrão: script suspeito e execução de comando
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (64)
+// Tabelas: Cloudflare_CL, CommonSecurityLog, AzureDiagnostics, AppRequests, AppTraces, Syslog, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1566.001", "T1204.002", "initialaccess", "phishing", "spearphishinglink", "H024", "ClickFix", "social", "engineering", "technique", "trick", "users", "copying", "pasting", "malicious", "PowerShell", "commands", "system", "dialog", "resulting", "execution", "GHOSTPULSE", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H024", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H024.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

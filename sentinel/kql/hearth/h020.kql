@@ -1,0 +1,21 @@
+// HEARTH H020 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H020.md
+// Hipótese: Os atores da ameaça estão usando o sistema Windows Management Instrumentation (WMI) para executar comandos PowerShell que estabelecem um shell reverso, permitindo-lhes obter controle remoto sobre servidores Windows no setor financeiro...
+// Padrão: script suspeito e execução de comando
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (28)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, OfficeActivity, AuditLogs, SigninLogs
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1047", "wmi", "H020", "Windows", "Management", "Instrumentation", "system", "execute", "PowerShell", "commands", "that", "establish", "reverse", "shell", "allowing", "them", "gain", "remote", "control", "over", "servers", "financial", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H020", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H020.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

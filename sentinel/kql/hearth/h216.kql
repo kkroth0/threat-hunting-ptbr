@@ -1,0 +1,21 @@
+// HEARTH H216 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H216.md
+// Hipótese: Um processo que não é um serviço de autenticação Windows legítimo (lsass.exe, services.exe, winlogon.exe) cria um novo token de acesso via LogonUser e se faz passar por um usuário e, em seguida, gera um processo filho (principalmente um navegador...
+// Padrão: correlação de abuso de identidade token/OAuth
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (54)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, CyberArk_AuditEvents_CL, OfficeActivity, NetskopeEventsApplication_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntTerms = dynamic(["T1134.001", "T1134.003", "H216", "process", "that", "legitimate", "Windows", "authentication", "service", "lsass.exe", "services.exe", "winlogon.exe", "creates", "access", "token", "LogonUser", "impersonates", "user", "then", "spawns", "child", "notably"]);
+union withsource=SourceTable isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    OfficeActivity
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+    or SearchBlob has_any ("deviceCode", "oauth", "refresh token", "consent", "service principal", "Microsoft Graph")
+| extend HuntId = "H216", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H216.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

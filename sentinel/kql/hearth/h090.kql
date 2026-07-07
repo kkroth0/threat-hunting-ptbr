@@ -1,0 +1,23 @@
+// HEARTH H090 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H090.md
+// Hipótese: Um adversário está usando a engenharia social ClickFix para induzir os usuários a executar comandos ofuscados que aproveitam finger.exe como um LOLBin para buscar cargas de malware direcionadas a endpoints corporativos para implantar programas de ransomware...
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (64)
+// Tabelas: Cloudflare_CL, CommonSecurityLog, AzureDiagnostics, AppRequests, AppTraces, Syslog, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1204.002", "T1218", "initial access", "defense evasion", "clickfix", "lolbin", "finger exe", "ransomware", "velvet tempest", "H090", "ClickFix", "social", "engineering", "trick", "users", "executing", "obfuscated", "commands", "that", "leverage", "finger.exe", "LOLBin", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H090", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H090.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

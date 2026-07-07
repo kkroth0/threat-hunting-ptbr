@@ -1,0 +1,23 @@
+// HEARTH H190 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H190.md
+// Hipótese: um adversário está explorando CVE-2026-35273 enviando POSTs não autenticado para endpoints PeopleSoft PSEMHUB/PSIGW para alcançar RCE/SSRF no servidor PIA/WebLogic voltado ao público.
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (49)
+// Tabelas: Cloudflare_CL, CommonSecurityLog, AzureDiagnostics, AppRequests, AppTraces, Syslog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, NetskopeAlerts_CL, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1190", "initial access", "peoplesoft", "cve 2026 35273", "ssrf", "shinyhunters", "weblogic", "H190", "exploiting", "CVE-2026-35273", "sending", "crafted", "unauthenticated", "POSTs", "PeopleSoft", "PSEMHUB/PSIGW", "endpoints", "achieve", "RCE/SSRF", "public-facing", "PIA/WebLogic", "server", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H190", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H190.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

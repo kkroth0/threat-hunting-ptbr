@@ -1,0 +1,21 @@
+// HEARTH H034 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H034.md
+// Hipótese: os atores da ameaça estão usando plug-ins IDE como "Remote Code Runner" ou "REST Client" para iniciar shells, scripts ou conexões de rede não autorizadas de ferramentas de desenvolvedor confiáveis, como VS Code, PyCharm ou Eclipse para permitir...
+// Padrão: script suspeito e execução de comando
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (44)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, CommonSecurityLog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, Cloudflare_CL, NetskopeAlerts_CL, ThreatIntelIndicators, Watchlist, SecurityAlert
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1546.016", "lateral movement", "ide plugin", "event triggered execution", "H034", "plugins", "like", "Remote", "Code", "Runner", "REST", "Client", "launch", "unauthorized", "shells", "scripts", "network", "connections", "trusted", "developer", "tools", "such", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H034", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H034.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

@@ -1,0 +1,23 @@
+// HEARTH H146 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H146.md
+// Hipótese: Processos não raiz invocam /usr/bin/su de processos pais anômalos logo após emitir AF_ALG soquete / splice() syscalls, indicando exploração de falha de cópia (CVE-2026-31431) contra binários setuid armazenados em cache de página.
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (30)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, Cloudflare_CL, CommonSecurityLog, AzureDiagnostics
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1068", "privilege escalation", "linux", "copy fail", "cve 2026 31431", "af alg", "H146", "Non-root", "processes", "invoke", "usr/bin/su", "anomalous", "parent", "shortly", "issuing", "AF_ALG", "socket", "splice", "syscalls", "indicating", "Copy", "Fail", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H146", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H146.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

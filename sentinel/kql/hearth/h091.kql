@@ -1,0 +1,23 @@
+// HEARTH H091 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H091.md
+// Hipótese: Um adversário está abusando dos mecanismos de dependência de extensão de código VS para transformar extensões de mercado inicialmente benignas em veículos de entrega transitivos para roubo de credenciais e malware de criptomineração direcionado ao desenvolvimento de software...
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (49)
+// Tabelas: Cloudflare_CL, CommonSecurityLog, AzureDiagnostics, AppRequests, AppTraces, Syslog, SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, NetskopeEventsNetwork_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1195.001", "T1554", "T1555", "initial access", "persistence", "credential access", "vscode", "supply chain", "glassworm", "developer tooling", "H091", "abusing", "Code", "extension", "dependency", "mechanisms", "turn", "initially", "benign", "marketplace", "extensions", "transitive", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H091", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H091.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

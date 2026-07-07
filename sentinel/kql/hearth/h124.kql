@@ -1,0 +1,21 @@
+// HEARTH H124 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H124.md
+// Hipótese: Um adversário está carregando um DLL malicioso (como CRYPTBASE.dll), colocando-o no mesmo diretório que um executável assinado legítimo, indicado pelo carregamento de DLLs de abuso conhecido a partir de caminhos graváveis pelo usuário em vez de S...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (46)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntTerms = dynamic(["T1574.001", "defense evasion", "dll search order hijacking", "sideloading", "cryptbase", "H124", "side-loading", "malicious", "such", "CRYPTBASE.dll", "placing", "same", "directory", "legitimate", "signed", "executable", "indicated", "known-abused", "DLLs", "loading", "user-writable", "paths", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H124", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H124.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

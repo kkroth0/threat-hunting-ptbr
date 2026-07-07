@@ -1,0 +1,21 @@
+// HEARTH H189 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H189.md
+// Hipótese: os adversários em GCP excluem, desativam ou redirecionam os coletores do Cloud Logging e excluem buckets de log para interromper o roteamento e o armazenamento de logs, cegando os defensores. essas ações aparecem nos registros de auditoria do Cloud como ConfigServiceV2 discreto met...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (56)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, AzureActivity, AzureDiagnostics, OrcaAlerts_CL, NetskopeEventsNetwork_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntTerms = dynamic(["T1562.008", "defense evasion", "cloud", "gcp", "cloud logging", "logging", "H189", "delete", "disable", "redirect", "Cloud", "Logging", "sinks", "buckets", "break", "routing", "storage", "blinding", "defenders", "actions", "appear", "Audit", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H189", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H189.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

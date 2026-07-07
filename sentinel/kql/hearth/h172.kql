@@ -1,0 +1,21 @@
+// HEARTH H172 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H172.md
+// Hipótese: Um aplicativo IIS hospedado ASP.NET (aplicativo KnowledgeDeliver LMS ou qualquer aplicativo ASP.NET compartilhando valores machineKey codificados em implantações de clientes) está sendo explorado via Desserialização ViewState - uma conta HTTP POST de entrada...
+// Padrão: script suspeito e execução de comando
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (50)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, Cloudflare_CL, CommonSecurityLog, AzureDiagnostics, AppRequests, AppTraces, Syslog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntTerms = dynamic(["T1505.003", "windows", "iis", "web shell", "viewstate", "deserialization", "bluebeam", "godzilla", "aspnet", "H172", "IIS-hosted", "ASP.NET", "application", "KnowledgeDeliver", "sharing", "hardcoded", "machineKey", "values", "customer", "deployments", "exploited", "ViewState", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H172", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H172.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

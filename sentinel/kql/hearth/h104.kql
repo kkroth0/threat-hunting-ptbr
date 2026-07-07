@@ -1,0 +1,21 @@
+// HEARTH H104 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H104.md
+// Hipótese: os atores da ameaça estão injetando cabeçalhos HTTP X-SSL-CLIENT-VERIFY com valor SUCCESS" e X-SSL-CLIENT-CERT contendo cadeias de certificados forjadas para ignorar a autenticação em interfaces da web FortiClient EMS escutando na porta...
+// Padrão: Persistência de endpoint e cadeia de evasão de defesa
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (44)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntTerms = dynamic(["T1550.004", "defense evasion", "forticlient", "authentication bypass", "H104", "injecting", "headers", "X-SSL-CLIENT-VERIFY", "value", "SUCCESS", "X-SSL-CLIENT-CERT", "containing", "forged", "certificate", "chains", "bypass", "authentication", "FortiClient", "interfaces", "listening", "port", "gaining", "powershell", "cmd.exe", "wscript", "cscript", "mshta", "rundll32", "regsvr32", "CurrentVersion\\Run", "Scheduled", "Service", "Registry", "Image File Execution Options", "SilentProcessExit", "Debugger", "Driver", "DLL"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H104", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H104.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

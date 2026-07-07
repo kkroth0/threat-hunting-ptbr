@@ -1,0 +1,23 @@
+// HEARTH H067 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H067.md
+// Hipótese: Um adversário está registrando pacotes de servidor MCP typosquatted ou trojanizados em registros públicos e gerenciadores de pacotes visando desenvolvedores e agentes AI que consomem ferramentas MCP para obter execução de código ou exfiltração de dados...
+// Padrão: exploração de aplicativos públicos e revisão de webshell
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (57)
+// Tabelas: Cloudflare_CL, CommonSecurityLog, AzureDiagnostics, AppRequests, AppTraces, Syslog, NetskopeEventsNetwork_CL, NetskopeEventsConnection_CL, NetskopeAlerts_CL, SigninLogs, AuditLogs, IdentityInfo
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 1d;
+let huntTerms = dynamic(["T1195.002", "initial access", "mcp", "supply chain", "ai agent", "H067", "registering", "typosquatted", "trojanized", "server", "packages", "public", "registries", "package", "managers", "targeting", "developers", "agents", "that", "consume", "tooling", "achieve", "POST", "GET", "webshell", "cmd=", "whoami", "bash", "powershell", "rce", "ssrf", "jndi"]);
+union withsource=SourceTable isfuzzy=true
+    Cloudflare_CL,
+    CommonSecurityLog,
+    AzureDiagnostics,
+    AppRequests,
+    AppTraces,
+    Syslog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = "H067", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H067.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

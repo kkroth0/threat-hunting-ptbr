@@ -1,0 +1,31 @@
+// HEARTH H102 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H102.md
+// Hipótese: Os adversários estão implantando binários de malware Big Endian de 32 bits UPX modificados embalados em UPX para /usr/bin/iocontrol em dispositivos IoT/OT baseados em Linux para evitar a detecção baseada em assinatura, mantendo capacidade de comando e controle...
+// Padrão: IOC e varredura do indicador
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P3 (39)
+// Tabelas: SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, ThreatIntelIndicators, Watchlist, SecurityAlert, SecurityIncident, Anomalies, Syslog, Heartbeat, CommonSecurityLog
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 14d;
+let huntId = "H102";
+let sourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H102.md";
+let huntTerms = dynamic(["T1027.002", "defense evasion", "iocontrol", "ot iot", "upx", "H102", "deploying", "modified", "UPX-packed", "32-bit", "Endian", "malware", "binaries", "usr/bin/iocontrol", "Linux-based", "IoT/OT", "devices", "evade", "signature-based", "detection", "while", "maintaining"]);
+union withsource=SourceTable isfuzzy=true
+    SecurityEvent,
+    WindowsEvent,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL,
+    ThreatIntelIndicators,
+    Watchlist,
+    SecurityAlert,
+    SecurityIncident,
+    Anomalies,
+    Syslog,
+    Heartbeat,
+    CommonSecurityLog
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+| extend HuntId = huntId, SourceUrl = sourceUrl
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

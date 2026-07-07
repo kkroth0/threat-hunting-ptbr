@@ -1,0 +1,21 @@
+// HEARTH H164 - candidato inicial KQL
+// Fonte: https://github.com/THORCollective/HEARTH/blob/main/Flames/H164.md
+// Hipótese: um adversário com credenciais Entra ID roubadas está registrando um dispositivo controlado pelo invasor no locatário usando **ROADtools roadtx** - visível nos logs de auditoria como uma operação de registro de dispositivo do Device Registration Servi...
+// Padrão: correlação de abuso de identidade token/OAuth
+// Cobertura: Starter KQL - validar em Sentinel
+// Prioridade: P2 (46)
+// Tabelas: SigninLogs, AuditLogs, IdentityInfo, BehaviorAnalytics, UserPeerAnalytics, SecurityEvent, WindowsEvent, TrendMicro_XDR_OAT_CL, TrendMicro_XDR_WORKBENCH_CL, Cloudflare_CL, CommonSecurityLog, AzureDiagnostics
+// Valide a disponibilidade da tabela, nomes de campos, limites e falsos positivos antes de usar como detecção.
+let lookback = 7d;
+let huntTerms = dynamic(["T1078.004", "T1098.001", "T1550.001", "T1098.005", "entra id", "m365", "roadtools", "prt", "curious serpens", "H164", "stolen", "Entra", "credentials", "registering", "attacker-controlled", "device", "tenant", "ROADtools", "roadtx", "visible", "audit", "logs"]);
+union withsource=SourceTable isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    OfficeActivity
+| where TimeGenerated >= ago(lookback)
+| extend SearchBlob = tostring(pack_all())
+| where SearchBlob has_any (huntTerms)
+    or SearchBlob has_any ("deviceCode", "oauth", "refresh token", "consent", "service principal", "Microsoft Graph")
+| extend HuntId = "H164", SourceUrl = "https://github.com/THORCollective/HEARTH/blob/main/Flames/H164.md"
+| project TimeGenerated, HuntId, SourceTable, SourceUrl, SearchBlob
+| order by TimeGenerated desc

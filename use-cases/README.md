@@ -109,7 +109,7 @@ Não promova uma caçada ainda quando:
 | Categoria | Exemplos de casos de uso | Tabelas |
 | --- | --- | --- |
 | Identidade | Spray de senha seguido de sucesso, viagem impossível, MFA suspeito, nova atribuição administrativa. | `SigninLogs`, `AuditLogs`, `IdentityInfo`, `BehaviorAnalytics`. |
-| Ponto final | Xqzph00000xqz codificado, cadeia de processo suspeita, comportamento de despejo de credenciais, precursor de ransomware. | `SecurityEvent`, `WindowsEvent`, `TrendMicro_XDR_OAT_CL`. |
+| Ponto final | PowerShell codificado, cadeia de processo suspeita, comportamento de despejo de credenciais, precursor de ransomware. | `SecurityEvent`, `WindowsEvent`, `TrendMicro_XDR_OAT_CL`. |
 | Rede | Pico de tráfego negado, correlação IP maliciosa, destino de saída raro, padrão DDoS/WAF. | `CommonSecurityLog`, `Cloudflare_CL`, `NetskopeEventsNetwork_CL`. |
 | SaaS e DLP | Acesso não autorizado a aplicativos, downloads incomuns, compartilhamento externo, padrões de alerta DLP. | `NetskopeAlerts_CL`, `NetskopeEventsApplication_CL`, `OfficeActivity`. |
 | Nuvem | Atribuição de função arriscada, abuso de comando de execução VM, exposição pública, descoberta de postura crítica. | `AzureActivity`, `AzureDiagnostics`, `OrcaAlerts_CL`. |

@@ -64,7 +64,7 @@ Use ABLE para tornar uma busca testável antes de escrever KQL.
 ## Captura de conhecimento
 Cada caçada concluída deve deixar para trás:
 
-- Xqzph00000xqz final e retrospectiva.
+- KQL final e lookback.
 - Tabelas e campos utilizados.
 - Exemplos de verdadeiros positivos, falsos positivos ou evidências de não ocorrência.
 - Notas e decisão do analista.

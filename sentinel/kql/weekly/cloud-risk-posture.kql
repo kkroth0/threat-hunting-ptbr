@@ -1,0 +1,21 @@
+let lookback = 7d;
+union isfuzzy=true
+(
+    OrcaAlerts_CL
+    | where TimeGenerated >= ago(lookback)
+    | where risk_level_s in~ ("critical", "high")
+    | project TimeGenerated, Source = "Orca", Severity = risk_level_s, Asset = asset_name_s, Account = account_name_s, Region = asset_regions_s, Finding = alert_category_s, Recommendation = recommendation_s, Url = alert_ui_link_s
+),
+(
+    AzureActivity
+    | where TimeGenerated >= ago(lookback)
+    | where ActivityStatusValue !in~ ("Succeeded", "Success") or OperationNameValue has_any ("delete", "write", "roleAssignments", "policyAssignments")
+    | project TimeGenerated, Source = "AzureActivity", Severity = ActivityStatusValue, Asset = Resource, Account = Caller, Region = ResourceGroup, Finding = OperationNameValue, Recommendation = ResultDescription, Url = ResourceId
+),
+(
+    AzureDiagnostics
+    | where TimeGenerated >= ago(lookback)
+    | where ResultType !in~ ("Success", "Succeeded", "OK") or Level in~ ("Error", "Warning")
+    | project TimeGenerated, Source = "AzureDiagnostics", Severity = coalesce(Level, ResultType), Asset = Resource, Account = "", Region = ResourceGroup, Finding = OperationName, Recommendation = ResultDescription, Url = ResourceId
+)
+| order by TimeGenerated desc

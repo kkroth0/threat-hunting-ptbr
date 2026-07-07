@@ -1,0 +1,55 @@
+let telemetryLookback = 7d;
+let intelLookback = 30d;
+let indicators =
+    ThreatIntelIndicators
+    | where TimeGenerated >= ago(intelLookback)
+    | where IsActive == true and IsDeleted != true and Revoked != true
+    | where isnotempty(ObservableValue)
+    | project Indicator = tostring(ObservableValue), ObservableKey, Confidence, Tags, ValidUntil;
+let telemetry =
+    union isfuzzy=true
+    (
+        CommonSecurityLog
+        | where TimeGenerated >= ago(telemetryLookback)
+        | project TimeGenerated, Source = "CommonSecurityLog", Entity = coalesce(SourceUserName, Computer), Observable = coalesce(DestinationIP, SourceIP, RequestURL, FileHash, DestinationHostName), Context = strcat(DeviceVendor, " ", DeviceProduct, " ", DeviceAction)
+    ),
+    (
+        Cloudflare_CL
+        | where TimeGenerated >= ago(telemetryLookback)
+        | project TimeGenerated, Source = "Cloudflare", Entity = RequestHeaders_cf_access_user_s, Observable = coalesce(ClientIP_s, OriginIP_s, ClientRequestURI_s, ClientRequestHost_s, JA3Hash_s), Context = strcat(SecurityAction_s, " ", SecurityRuleDescription_s)
+    ),
+    (
+        NetskopeAlerts_CL
+        | where TimeGenerated >= ago(telemetryLookback)
+        | project TimeGenerated, Source = "Netskope Alerts", Entity = userPrincipalName, Observable = coalesce(srcip, dstip, url, domain, sha256, md5), Context = strcat(alert_name, " ", action)
+    ),
+    (
+        NetskopeEventsApplication_CL
+        | where TimeGenerated >= ago(telemetryLookback)
+        | project TimeGenerated, Source = "Netskope Application", Entity = userPrincipalName, Observable = coalesce(srcip, dstip, url, domain, sha256, md5), Context = strcat(app, " ", action)
+    ),
+    (
+        NetskopeEventsNetwork_CL
+        | where TimeGenerated >= ago(telemetryLookback)
+        | project TimeGenerated, Source = "Netskope Network", Entity = userPrincipalName, Observable = coalesce(srcip, dstip, dsthost, domain, ur_normalized), Context = strcat(action, " ", policy)
+    ),
+    (
+        TrendMicro_XDR_OAT_CL
+        | where TimeGenerated >= ago(telemetryLookback)
+        | project TimeGenerated, Source = "Trend OAT", Entity = detail_endpointHostName_s, Observable = coalesce(detail_dst_s, detail_src_s, detail_domainName_s, detail_urlCat_s, detail_fileHashSha256_s, detail_objectFileHashSha256_s), Context = strcat(detail_detectionName_s, " ", detail_processName_s)
+    ),
+    (
+        TrendMicro_XDR_WORKBENCH_CL
+        | where TimeGenerated >= ago(telemetryLookback)
+        | project TimeGenerated, Source = "Trend Workbench", Entity = HostHostName_s, Observable = coalesce(IPAddress, URL_s, DomainName_s, FileHashValue_s), Context = strcat(severity_s, " ", workbenchName_s)
+    ),
+    (
+        OrcaAlerts_CL
+        | where TimeGenerated >= ago(telemetryLookback)
+        | project TimeGenerated, Source = "Orca", Entity = asset_name_s, Observable = coalesce(asset_hostname_s, findings_PublicUrl_s, findings_PrimaryEndpoints_s, findings_Sha256_s, findings_Sha1_s), Context = strcat(risk_level_s, " ", alert_category_s)
+    );
+telemetry
+| where isnotempty(Observable)
+| join kind=inner indicators on $left.Observable == $right.Indicator
+| project TimeGenerated, Source, Entity, Observable, ObservableKey, Confidence, Tags, ValidUntil, Context
+| order by TimeGenerated desc

@@ -1,0 +1,41 @@
+let lookback = 1d;
+let failureThreshold = 5;
+let failures =
+    SigninLogs
+    | where TimeGenerated >= ago(lookback)
+    | where ResultType != "0"
+    | summarize
+        FailedAttempts = count(),
+        FailureIPs = make_set(IPAddress, 20),
+        FailureApps = make_set(AppDisplayName, 20),
+        FirstFailure = min(TimeGenerated),
+        LastFailure = max(TimeGenerated)
+        by UserPrincipalName;
+let successes =
+    SigninLogs
+    | where TimeGenerated >= ago(lookback)
+    | where ResultType == "0"
+    | summarize
+        Successes = count(),
+        SuccessIPs = make_set(IPAddress, 20),
+        SuccessApps = make_set(AppDisplayName, 20),
+        FirstSuccess = min(TimeGenerated),
+        LastSuccess = max(TimeGenerated)
+        by UserPrincipalName;
+failures
+| where FailedAttempts >= failureThreshold
+| join kind=inner successes on UserPrincipalName
+| where LastFailure <= LastSuccess
+| project
+    UserPrincipalName,
+    FailedAttempts,
+    Successes,
+    FailureIPs,
+    SuccessIPs,
+    FailureApps,
+    SuccessApps,
+    FirstFailure,
+    LastFailure,
+    FirstSuccess,
+    LastSuccess
+| order by FailedAttempts desc

@@ -1,0 +1,33 @@
+let lookback = 1d;
+union isfuzzy=true
+(
+    SecurityIncident
+    | where TimeGenerated >= ago(lookback)
+    | where Severity in ("High", "Medium") or Status !in ("Closed")
+    | project TimeGenerated, Source = "Sentinel Incident", Severity, Status, Title, Entity = IncidentName, Url = IncidentUrl
+),
+(
+    SecurityAlert
+    | where TimeGenerated >= ago(lookback)
+    | where AlertSeverity in ("High", "Medium")
+    | project TimeGenerated, Source = "Sentinel Alert", Severity = AlertSeverity, Status, Title = AlertName, Entity = CompromisedEntity, Url = AlertLink
+),
+(
+    TrendMicro_XDR_WORKBENCH_CL
+    | where TimeGenerated >= ago(lookback)
+    | where severity_s in~ ("critical", "high", "medium")
+    | project TimeGenerated, Source = "Trend Vision One", Severity = severity_s, Status = investigationStatus_s, Title = workbenchName_s, Entity = HostHostName_s, Url = workbenchLink_s
+),
+(
+    OrcaAlerts_CL
+    | where TimeGenerated >= ago(lookback)
+    | where risk_level_s in~ ("critical", "high", "medium")
+    | project TimeGenerated, Source = "Orca Security", Severity = risk_level_s, Status = status_s, Title = alert_category_s, Entity = asset_name_s, Url = alert_ui_link_s
+),
+(
+    NetskopeAlerts_CL
+    | where TimeGenerated >= ago(lookback)
+    | where severity in~ ("critical", "high", "medium") or severity_level in~ ("critical", "high", "medium")
+    | project TimeGenerated, Source = "Netskope", Severity = coalesce(severity, severity_level), Status = acked, Title = alert_name, Entity = user, Url = url
+)
+| order by TimeGenerated desc

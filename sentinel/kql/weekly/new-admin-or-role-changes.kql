@@ -1,0 +1,22 @@
+let lookback = 7d;
+let adminTerms = dynamic(["admin", "administrator", "role", "privileged", "owner", "password", "credential", "secret", "policy"]);
+union isfuzzy=true
+(
+    AuditLogs
+    | where TimeGenerated >= ago(lookback)
+    | where ActivityDisplayName has_any (adminTerms) or OperationName has_any (adminTerms)
+    | project TimeGenerated, Source = "AuditLogs", Actor = tostring(InitiatedBy), Operation = coalesce(ActivityDisplayName, OperationName), Target = tostring(TargetResources), Result, Details = tostring(AdditionalDetails)
+),
+(
+    AzureActivity
+    | where TimeGenerated >= ago(lookback)
+    | where OperationNameValue has_any (adminTerms) or ActivityStatusValue !in~ ("Succeeded", "Success")
+    | project TimeGenerated, Source = "AzureActivity", Actor = Caller, Operation = OperationNameValue, Target = ResourceId, Result = ActivityStatusValue, Details = Properties
+),
+(
+    CyberArk_AuditEvents_CL
+    | where TimeGenerated >= ago(lookback)
+    | where action has_any (adminTerms) or command has_any (adminTerms) or safe has_any (adminTerms)
+    | project TimeGenerated, Source = "CyberArk", Actor = username, Operation = action, Target = coalesce(targetAccount, target, safe), Result = actionType, Details = message
+)
+| order by TimeGenerated desc

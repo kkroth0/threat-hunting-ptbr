@@ -1,0 +1,50 @@
+# OS and editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Local Codex/session artifacts
+.agents/
+.codex/
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Local environment and secrets
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Logs and temporary output
+*.log
+tmp/
+temp/
+.cache/
+
+# Local hunt output and sensitive investigation material
+hunt-results/
+exports/
+evidence/
+artifacts/
+samples/
+
+# Local external repository checkouts
+HEARTH/
+hearth/

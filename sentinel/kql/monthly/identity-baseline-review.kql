@@ -1,0 +1,28 @@
+let lookback = 30d;
+let signinSummary =
+    SigninLogs
+    | where TimeGenerated >= ago(lookback)
+    | summarize SignIns = count(), FailedSignIns = countif(ResultType != "0"), IPs = dcount(IPAddress), Apps = dcount(AppDisplayName), LastSignIn = max(TimeGenerated) by UserPrincipalName;
+let auditSummary =
+    AuditLogs
+    | where TimeGenerated >= ago(lookback)
+    | summarize AuditEvents = count(), Operations = make_set(ActivityDisplayName, 20), LastAudit = max(TimeGenerated) by Identity;
+IdentityInfo
+| summarize arg_max(TimeGenerated, *) by AccountUPN
+| join kind=fullouter signinSummary on $left.AccountUPN == $right.UserPrincipalName
+| join kind=leftouter auditSummary on $left.AccountUPN == $right.Identity
+| project
+    Account = coalesce(AccountUPN, UserPrincipalName, Identity),
+    AccountDisplayName,
+    AccountObjectId,
+    SignIns,
+    FailedSignIns,
+    IPs,
+    Apps,
+    LastSignIn,
+    AuditEvents,
+    Operations,
+    LastAudit,
+    Tags,
+    AssignedRoles
+| order by FailedSignIns desc, SignIns desc

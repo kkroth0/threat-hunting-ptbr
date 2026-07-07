@@ -1,0 +1,26 @@
+let baselineStart = ago(30d);
+let baselineEnd = ago(7d);
+let huntWindow = 7d;
+let signinBaseline =
+    SigninLogs
+    | where TimeGenerated between (baselineStart .. baselineEnd)
+    | summarize by UserPrincipalName, AppDisplayName, ClientAppUsed, UserAgent;
+let signinCurrent =
+    SigninLogs
+    | where TimeGenerated >= ago(huntWindow)
+    | project TimeGenerated, Source = "SigninLogs", User = UserPrincipalName, App = AppDisplayName, Client = ClientAppUsed, UserAgent, IPAddress, ResultType;
+let rareSignin =
+    signinCurrent
+    | join kind=leftanti signinBaseline on $left.User == $right.UserPrincipalName, $left.App == $right.AppDisplayName, $left.Client == $right.ClientAppUsed, UserAgent;
+let netskope =
+    NetskopeEventsApplication_CL
+    | where TimeGenerated >= ago(huntWindow)
+    | where ccl in~ ("poor", "low") or sanctioned_instance in~ ("false", "no")
+    | project TimeGenerated, Source = "NetskopeApplication", User = userPrincipalName, App = app, Client = browser, UserAgent = useragent, IPAddress = srcip, ResultType = action;
+let office =
+    OfficeActivity
+    | where TimeGenerated >= ago(huntWindow)
+    | project TimeGenerated, Source = "OfficeActivity", User = UserId, App = OfficeWorkload, Client = ClientIP, UserAgent = UserAgent, IPAddress = ClientIP, ResultType = Operation;
+union rareSignin, netskope, office
+| summarize Events = count(), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated), IPs = make_set(IPAddress, 20), Results = make_set(ResultType, 20) by Source, User, App, Client, UserAgent
+| order by Events desc

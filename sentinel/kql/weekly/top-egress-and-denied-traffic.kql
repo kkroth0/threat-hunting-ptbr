@@ -1,0 +1,19 @@
+let lookback = 7d;
+union isfuzzy=true
+(
+    CommonSecurityLog
+    | where TimeGenerated >= ago(lookback)
+    | project TimeGenerated, Source = strcat(DeviceVendor, " ", DeviceProduct), User = SourceUserName, SrcIp = SourceIP, DstIp = DestinationIP, Destination = coalesce(DestinationHostName, DestinationDnsDomain, DestinationIP), Action = coalesce(DeviceAction, SimplifiedDeviceAction), Bytes = tolong(ReceivedBytes) + tolong(SentBytes)
+),
+(
+    NetskopeEventsNetwork_CL
+    | where TimeGenerated >= ago(lookback)
+    | project TimeGenerated, Source = "Netskope Network", User = userPrincipalName, SrcIp = srcip, DstIp = dstip, Destination = coalesce(dsthost, domain, ur_normalized), Action = action, Bytes = tolong(client_bytes) + tolong(server_bytes)
+),
+(
+    Cloudflare_CL
+    | where TimeGenerated >= ago(lookback)
+    | project TimeGenerated, Source = "Cloudflare", User = RequestHeaders_cf_access_user_s, SrcIp = ClientIP_s, DstIp = OriginIP_s, Destination = ClientRequestHost_s, Action = coalesce(SecurityAction_s, tostring(EdgeResponseStatus_d)), Bytes = tolong(ClientRequestBytes_d) + tolong(EdgeResponseBytes_d)
+)
+| summarize Events = count(), TotalBytes = sum(Bytes), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated), Actions = make_set(Action, 20) by Source, User, SrcIp, DstIp, Destination
+| order by TotalBytes desc, Events desc

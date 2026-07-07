@@ -1,0 +1,22 @@
+let lookback = 30d;
+let incidents =
+    SecurityIncident
+    | where TimeGenerated >= ago(lookback)
+    | summarize
+        Incidents = dcount(IncidentNumber),
+        OpenIncidents = dcountif(IncidentNumber, Status !in ("Closed")),
+        ClosedIncidents = dcountif(IncidentNumber, Status == "Closed"),
+        Owners = make_set(tostring(Owner), 20),
+        Classifications = make_set(Classification, 20)
+        by Severity, Title;
+let alerts =
+    SecurityAlert
+    | where TimeGenerated >= ago(lookback)
+    | summarize Alerts = count(), AlertEntities = dcount(CompromisedEntity), Tactics = make_set(Tactics, 20), Techniques = make_set(Techniques, 20) by AlertSeverity, AlertName, ProductName;
+incidents
+| project Type = "Incident", Severity, Name = Title, Count = Incidents, OpenCount = OpenIncidents, ClosedCount = ClosedIncidents, Details = strcat("Owners=", tostring(Owners), " Classifications=", tostring(Classifications))
+| union (
+    alerts
+    | project Type = "Alert", Severity = AlertSeverity, Name = AlertName, Count = Alerts, OpenCount = long(null), ClosedCount = long(null), Details = strcat("Product=", ProductName, " Entities=", AlertEntities, " Tactics=", tostring(Tactics), " Techniques=", tostring(Techniques))
+)
+| order by Count desc

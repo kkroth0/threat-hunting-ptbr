@@ -1,0 +1,25 @@
+let lookback = 1d;
+let suspiciousTerms = dynamic(["-enc", "-encodedcommand", "frombase64string", "downloadstring", "invoke-expression", "iex ", "bypass", "hidden", "reflection.assembly"]);
+union isfuzzy=true
+(
+    SecurityEvent
+    | where TimeGenerated >= ago(lookback)
+    | where EventID in (4688, 4103, 4104)
+    | extend Command = tostring(coalesce(CommandLine, EventData))
+    | project TimeGenerated, Source = "SecurityEvent", Computer, Account = coalesce(Account, SubjectUserName, TargetUserName), Command, ProcessName, ParentProcessName, EventID
+),
+(
+    WindowsEvent
+    | where TimeGenerated >= ago(lookback)
+    | where EventID in (4688, 4103, 4104)
+    | extend Command = tostring(EventData)
+    | project TimeGenerated, Source = "WindowsEvent", Computer, Account = tostring(EventData.SubjectUserName), Command, ProcessName = tostring(EventData.NewProcessName), ParentProcessName = tostring(EventData.ParentProcessName), EventID
+),
+(
+    TrendMicro_XDR_OAT_CL
+    | where TimeGenerated >= ago(lookback)
+    | extend Command = tostring(coalesce(detail_processCmd_s, detail_objectCmd_s, detail_parentCmd_s, detail_eventDataScriptBlockText_s))
+    | project TimeGenerated, Source = "Trend Vision One", Computer = detail_endpointHostName_s, Account = detail_processUser_s, Command, ProcessName = detail_processName_s, ParentProcessName = detail_parentName_s, EventID = toint(detail_eventId_d)
+)
+| where Command has_any (suspiciousTerms)
+| order by TimeGenerated desc

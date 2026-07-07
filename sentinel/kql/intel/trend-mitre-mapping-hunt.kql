@@ -1,0 +1,17 @@
+let lookback = 14d;
+let attackFilter = dynamic(["T1059", "T1078", "T1021", "T1110", "T1566", "T1486"]);
+union isfuzzy=true
+(
+    TrendMicro_XDR_OAT_CL
+    | where TimeGenerated >= ago(lookback)
+    | where detail_mitreMapping_s has_any (attackFilter) or detail_tacticId_s has_any (attackFilter)
+    | project TimeGenerated, Source = "Trend OAT", Entity = detail_endpointHostName_s, User = detail_processUser_s, Tactics = detail_tacticId_s, Techniques = detail_mitreMapping_s, Detection = detail_detectionName_s, Process = detail_processName_s, Command = detail_processCmd_s
+),
+(
+    SecurityAlert
+    | where TimeGenerated >= ago(lookback)
+    | where Techniques has_any (attackFilter) or SubTechniques has_any (attackFilter)
+    | project TimeGenerated, Source = "Sentinel Alert", Entity = CompromisedEntity, User = "", Tactics, Techniques = strcat(Techniques, " ", SubTechniques), Detection = AlertName, Process = ProductName, Command = Description
+)
+| summarize Events = count(), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated), Detections = make_set(Detection, 20), Commands = make_set(Command, 20) by Source, Entity, User, Tactics, Techniques, Process
+| order by Events desc

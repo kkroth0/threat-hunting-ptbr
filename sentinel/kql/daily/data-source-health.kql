@@ -1,0 +1,29 @@
+let lookback = 1d;
+union isfuzzy=true
+(
+    Heartbeat
+    | where TimeGenerated >= ago(lookback)
+    | summarize LastSeen = max(TimeGenerated), Events = count() by Source = "Heartbeat", Entity = Computer, Status = OSType
+),
+(
+    SentinelHealth
+    | where TimeGenerated >= ago(lookback)
+    | summarize LastSeen = max(TimeGenerated), Events = count() by Source = "SentinelHealth", Entity = SentinelResourceName, Status = Status
+),
+(
+    AMAAgentHealth_CL
+    | where TimeGenerated >= ago(lookback)
+    | summarize LastSeen = max(TimeGenerated), Events = count() by Source = "AMAAgentHealth", Entity = Type, Status = "Reported"
+),
+(
+    TrendMicro_XDR_Health_Check_CL
+    | where TimeGenerated >= ago(lookback)
+    | summarize LastSeen = max(TimeGenerated), Events = count() by Source = "Trend XDR Health", Entity = tostring(clpId_g), Status = coalesce(error_s, "OK")
+),
+(
+    TrendMicro_XDR_OAT_Health_Check_CL
+    | where TimeGenerated >= ago(lookback)
+    | summarize LastSeen = max(TimeGenerated), Events = count() by Source = "Trend OAT Health", Entity = tostring(clpId_g), Status = coalesce(error_s, "OK")
+)
+| extend AgeHours = datetime_diff("hour", now(), LastSeen)
+| order by AgeHours desc

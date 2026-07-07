@@ -1,0 +1,210 @@
+# NetskopeEventsApplication_CL
+
+## Objetivo de caça
+Tabela personalizada Netskope usada para SASE, CASB, web, DLP, aplicativo e busca de rede.
+
+## Principais campos de caça
+| Campo | Tipo |
+| --- | --- |
+| `action` | `string` |
+| `activity` | `string` |
+| `alert` | `string` |
+| `alert_type` | `string` |
+| `app_activity` | `string` |
+| `device` | `string` |
+| `device_classification` | `string` |
+| `dlp_file` | `string` |
+| `dlp_incidentid` | `string` |
+| `dlp_profile` | `string` |
+| `dlp_rule_severity` | `string` |
+| `dsthost` | `string` |
+| `dstip` | `string` |
+| `dst_location` | `string` |
+| `file_lang` | `string` |
+| `file_path` | `string` |
+| `file_size` | `int` |
+| `file_type` | `string` |
+| `from_user` | `string` |
+| `from_user_category` | `string` |
+| `hostname` | `string` |
+| `loginurl` | `string` |
+| `log_file_name` | `string` |
+| `netskope_activity` | `string` |
+| `nsdeviceuid` | `string` |
+| `orignal_file_path` | `string` |
+| `sAMAccountName` | `string` |
+| `severity` | `string` |
+| `srcip` | `string` |
+| `src_location` | `string` |
+
+## Consulta inicial
+```kql
+NetskopeEventsApplication_CL
+| where TimeGenerated >= ago(24h)
+| summarize Events = count() by bin(TimeGenerated, 1h)
+| order by TimeGenerated desc
+```
+
+## Projeção Rápida
+```kql
+NetskopeEventsApplication_CL
+| where TimeGenerated >= ago(24h)
+| project action, activity, alert, alert_type, app_activity, device, device_classification, dlp_file
+| take 100
+```
+
+## Esquema Completo
+| Campo | Tipo |
+| --- | --- |
+| `access_method` | `string` |
+| `action` | `string` |
+| `activity` | `string` |
+| `alert` | `string` |
+| `alert_type` | `string` |
+| `app` | `string` |
+| `appcategory` | `string` |
+| `appsuite` | `string` |
+| `app_activity` | `string` |
+| `app_sessionid` | `string` |
+| `audit_category` | `string` |
+| `audit_type` | `string` |
+| `browser` | `string` |
+| `browser_sessionid` | `string` |
+| `browser_version` | `string` |
+| `category` | `string` |
+| `cci` | `int` |
+| `ccl` | `string` |
+| `channel_id` | `string` |
+| `client_bytes` | `int` |
+| `connectionid` | `string` |
+| `conn_duration` | `int` |
+| `CononicalName` | `string` |
+| `count_i` | `int` |
+| `custom_connector` | `string` |
+| `data_center` | `string` |
+| `data_type` | `string` |
+| `device` | `string` |
+| `device_classification` | `string` |
+| `dlp_file` | `string` |
+| `dlp_incidentid` | `string` |
+| `dlp_is_unique_count` | `string` |
+| `dlp_mail_parent_id` | `string` |
+| `dlp_parentid` | `string` |
+| `dlp_profile` | `string` |
+| `dlp_rule` | `string` |
+| `dlp_rule_count` | `int` |
+| `dlp_rule_severity` | `string` |
+| `dlp_unique_count` | `int` |
+| `dsthost` | `string` |
+| `dstip` | `string` |
+| `dstport` | `int` |
+| `dst_country` | `string` |
+| `dst_geoip_src` | `int` |
+| `dst_latitude` | `int` |
+| `dst_location` | `string` |
+| `dst_longitude` | `int` |
+| `dst_region` | `string` |
+| `dst_timezone` | `string` |
+| `dst_zipcode` | `string` |
+| `exposure` | `string` |
+| `file_lang` | `string` |
+| `file_path` | `string` |
+| `file_size` | `int` |
+| `file_type` | `string` |
+| `fromlogs` | `string` |
+| `from_user` | `string` |
+| `from_user_category` | `string` |
+| `hostname` | `string` |
+| `instance` | `string` |
+| `instance_id` | `string` |
+| `internal_collaborator_count` | `int` |
+| `logintype` | `string` |
+| `loginurl` | `string` |
+| `log_file_name` | `string` |
+| `managed_app` | `string` |
+| `managementID` | `string` |
+| `md5` | `string` |
+| `mime_type` | `string` |
+| `modified` | `int` |
+| `netskope_activity` | `string` |
+| `netskope_pop` | `string` |
+| `notify_template` | `string` |
+| `nsdeviceuid` | `string` |
+| `numbytes` | `int` |
+| `object` | `string` |
+| `object_id` | `string` |
+| `object_type` | `string` |
+| `org` | `string` |
+| `organization_unit` | `string` |
+| `orignal_file_path` | `string` |
+| `os` | `string` |
+| `os_version` | `string` |
+| `other_categories` | `dynamic` |
+| `outer_doc_type` | `int` |
+| `owner` | `string` |
+| `page` | `string` |
+| `page_site` | `string` |
+| `parent_id` | `string` |
+| `policy` | `string` |
+| `policy_id` | `string` |
+| `protocol` | `string` |
+| `referer` | `string` |
+| `requestid` | `string` |
+| `req_cnt` | `int` |
+| `resp_cnt` | `int` |
+| `sAMAccountName` | `string` |
+| `sanctioned_instance` | `string` |
+| `scan_type` | `string` |
+| `serial` | `string` |
+| `server_bytes` | `int` |
+| `sessionid` | `string` |
+| `severity` | `string` |
+| `sfwder` | `string` |
+| `sha256` | `string` |
+| `shared_with` | `string` |
+| `site` | `string` |
+| `smtp_to` | `dynamic` |
+| `srcip` | `string` |
+| `src_country` | `string` |
+| `src_geoip_src` | `int` |
+| `src_latitude` | `int` |
+| `src_location` | `string` |
+| `src_longitude` | `int` |
+| `src_region` | `string` |
+| `src_time` | `string` |
+| `src_timezone` | `string` |
+| `src_zipcode` | `string` |
+| `suppression_end_time` | `int` |
+| `suppression_key` | `string` |
+| `suppression_start_time` | `int` |
+| `telemetry_app` | `string` |
+| `TenantId` | `string` |
+| `TimeGenerated` | `datetime` |
+| `timestamp` | `int` |
+| `title_s` | `string` |
+| `total_collaborator_count` | `int` |
+| `to_user` | `string` |
+| `traffic_type` | `string` |
+| `transactionid` | `string` |
+| `true_obj_category` | `string` |
+| `true_obj_type` | `string` |
+| `tss_mode` | `string` |
+| `Type` | `string` |
+| `type_s` | `string` |
+| `universal_connector` | `string` |
+| `url` | `string` |
+| `ur_normalized` | `string` |
+| `user` | `string` |
+| `useragent` | `string` |
+| `userip` | `string` |
+| `userkey` | `string` |
+| `userPrincipalName` | `string` |
+| `user_category` | `string` |
+| `user_id` | `string` |
+| `web_universal_connector` | `string` |
+| `workspace` | `string` |
+| `workspace_id` | `string` |
+| `_BilledSize` | `real` |
+| `_IsBillable` | `string` |
+| `_ResourceId` | `string` |
+| `_SubscriptionId` | `string` |

@@ -1,0 +1,24 @@
+let lookback = 30d;
+let ingestion =
+    Usage
+    | where TimeGenerated >= ago(lookback)
+    | summarize UsageEvents = count(), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated) by DataType;
+let hosts =
+    Heartbeat
+    | where TimeGenerated >= ago(lookback)
+    | summarize HeartbeatEvents = count(), HostLastSeen = max(TimeGenerated), Hosts = dcount(Computer) by OSType;
+let sentinelHealth =
+    SentinelHealth
+    | where TimeGenerated >= ago(lookback)
+    | summarize HealthEvents = count(), HealthLastSeen = max(TimeGenerated) by SentinelResourceName, Status;
+ingestion
+| order by DataType asc
+| project DataType, UsageEvents, FirstSeen, LastSeen
+| union (
+    hosts
+    | project DataType = strcat("Heartbeat/", OSType), UsageEvents = HeartbeatEvents, FirstSeen = datetime(null), LastSeen = HostLastSeen
+)
+| union (
+    sentinelHealth
+    | project DataType = strcat("SentinelHealth/", SentinelResourceName, "/", Status), UsageEvents = HealthEvents, FirstSeen = datetime(null), LastSeen = HealthLastSeen
+)

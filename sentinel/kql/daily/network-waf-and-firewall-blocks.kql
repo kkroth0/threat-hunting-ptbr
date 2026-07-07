@@ -1,0 +1,22 @@
+let lookback = 1d;
+union isfuzzy=true
+(
+    CommonSecurityLog
+    | where TimeGenerated >= ago(lookback)
+    | where DeviceAction has_any ("deny", "drop", "block", "blocked") or SimplifiedDeviceAction has_any ("deny", "drop", "block")
+    | project TimeGenerated, Source = strcat(DeviceVendor, " ", DeviceProduct), Action = coalesce(DeviceAction, SimplifiedDeviceAction), SrcIp = SourceIP, DstIp = DestinationIP, DstPort = tostring(DestinationPort), Url = RequestURL, User = SourceUserName, Reason
+),
+(
+    Cloudflare_CL
+    | where TimeGenerated >= ago(lookback)
+    | where SecurityAction_s has_any ("block", "challenge", "jschallenge", "managed_challenge") or WAFAttackScore_d < 40
+    | project TimeGenerated, Source = "Cloudflare", Action = SecurityAction_s, SrcIp = ClientIP_s, DstIp = OriginIP_s, DstPort = "", Url = ClientRequestURI_s, User = RequestHeaders_cf_access_user_s, Reason = SecurityRuleDescription_s
+),
+(
+    NetskopeEventsNetwork_CL
+    | where TimeGenerated >= ago(lookback)
+    | where action has_any ("block", "deny") or ccl in~ ("poor", "low")
+    | project TimeGenerated, Source = "Netskope Network", Action = action, SrcIp = srcip, DstIp = dstip, DstPort = tostring(dstport), Url = ur_normalized, User = user, Reason = policy
+)
+| summarize Events = count(), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated), Reasons = make_set(Reason, 10), Users = make_set(User, 20) by Source, Action, SrcIp, DstIp, DstPort, Url
+| order by Events desc

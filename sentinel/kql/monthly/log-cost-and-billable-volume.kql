@@ -1,0 +1,24 @@
+let lookback = 30d;
+union withsource=TableName isfuzzy=true
+    SigninLogs,
+    AuditLogs,
+    SecurityEvent,
+    WindowsEvent,
+    CommonSecurityLog,
+    Cloudflare_CL,
+    NetskopeAlerts_CL,
+    NetskopeEventsApplication_CL,
+    NetskopeEventsConnection_CL,
+    NetskopeEventsNetwork_CL,
+    NetskopeEventsPage_CL,
+    OrcaAlerts_CL,
+    TrendMicro_XDR_OAT_CL,
+    TrendMicro_XDR_WORKBENCH_CL
+| where TimeGenerated >= ago(lookback)
+| summarize
+    Events = count(),
+    BillableMB = round(sum(_BilledSize) / 1024.0 / 1024.0, 2),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated)
+    by TableName, IsBillable = tostring(_IsBillable)
+| order by BillableMB desc, Events desc
